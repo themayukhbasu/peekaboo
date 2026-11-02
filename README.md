@@ -26,18 +26,28 @@ A few existing agents:
 - [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent)
 - [opencode](https://github.com/anomalyco/opencode)
 
+## Early cuts
+
+Staged so peek lands before tool complexity. See [docs/early-cuts.md](docs/early-cuts.md). Stack and product decisions: [ADR 0001](docs/adr/0001-python-raw-http-ollama-first.md), [ADR 0002](docs/adr/0002-cli-and-early-peek.md). Terms: [GLOSSARY.md](GLOSSARY.md).
+
+1. One-shot chat loop (Python, raw HTTP → Ollama) + JSONL turn events
+2. Tiny local web peek over that event stream
+3. Agent loop with one tool
+4. REPL, then streaming
+
 ## Roadmap
 
-1. Minimal agent loop
-2. Tools and an edit format
-3. Context assembly and the context/token/cost view
-4. Loading AGENTS.md, skills and MCP
-5. Hooks and permissions
-6. Sandboxing
-7. Compaction and memory
-8. Subagents
-9. Evals
+After the early cuts, later capability is still fog; a research survey of possible stages lives in [docs/reference/harness-landscape.md](docs/reference/harness-landscape.md) (not the living plan):
+
+1. Tools and an edit format
+2. Richer context assembly (tokens, cost, cache) in the peek
+3. Loading AGENTS.md, skills and MCP
+4. Hooks and permissions
+5. Sandboxing
+6. Compaction and memory
+7. Subagents
+8. Evals
 
 ## Status
 
-Early days. This is a learning project, and it is not for production use.
+Early days. Learning project, not for production. Language and early shape are decided; most harness code is not started yet.

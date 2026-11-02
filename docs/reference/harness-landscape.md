@@ -1,8 +1,8 @@
-# peekaboo gameplan
+# Harness landscape (reference)
 
-> Exported from the project gameplan on 2 Nov 2026.
+> **Not the project plan.** Agent-authored research survey (exported 2 Nov 2026). Keep it for stages, costs, Ollama notes, provider options, and reading lists. When it conflicts with [ADRs](../adr/), [GLOSSARY.md](../../GLOSSARY.md), or [early-cuts.md](../early-cuts.md), those win. The living plan grows from grill / wayfinder sessions, not from edits here.
 
-> 🧭 A staged plan for building a learning-grade **inner harness**: the runtime around the model that turns an LLM into a coding agent. No harness code here, only plans, explanations and verified pointers. Every link was checked on 31 Oct 2026.
+> 🧭 Landscape notes for a learning-grade **inner harness**: the runtime around the model that turns an LLM into a coding agent. No harness code here, only explanations and verified pointers. Every link was checked on 31 Oct 2026.
 
 ## 1. What an inner harness is
 
