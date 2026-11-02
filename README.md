@@ -28,7 +28,7 @@ A few existing agents:
 
 ## Early cuts
 
-Staged so peek lands before tool complexity. Stack and product decisions: [ADR 0001](docs/adr/0001-python-raw-http-ollama-first.md), [ADR 0002](docs/adr/0002-cli-and-early-peek.md). Terms: [GLOSSARY.md](GLOSSARY.md).
+Staged so peek lands before tool complexity. See [docs/early-cuts.md](docs/early-cuts.md). Stack and product decisions: [ADR 0001](docs/adr/0001-python-raw-http-ollama-first.md), [ADR 0002](docs/adr/0002-cli-and-early-peek.md). Terms: [GLOSSARY.md](GLOSSARY.md).
 
 1. One-shot chat loop (Python, raw HTTP → Ollama) + JSONL turn events
 2. Tiny local web peek over that event stream
@@ -37,7 +37,7 @@ Staged so peek lands before tool complexity. Stack and product decisions: [ADR 0
 
 ## Roadmap
 
-After the early cuts, capability grows in the longer plan in [docs/gameplan.md](docs/gameplan.md):
+After the early cuts, capability grows in the longer plan in [docs/gameplan.md](docs/gameplan.md) (unchanged reference plan):
 
 1. Tools and an edit format
 2. Richer context assembly (tokens, cost, cache) in the peek

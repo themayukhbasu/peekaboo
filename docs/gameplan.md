@@ -73,12 +73,10 @@ Most agents hide the prompt. Yours shows it. On every turn, render the assembled
 
 ## 2. The gameplan
 
-Early learning cuts (see [ADR 0002](adr/0002-cli-and-early-peek.md)) split the old “minimal loop” before this longer stage ladder: one-shot chat + JSONL peek → tiny web peek → one-tool agent loop → REPL/streaming. Then the stages below.
-
 ```mermaid
 flowchart LR
-  S1["1. Agent loop and peek"] --> S2["2. Tools and edit format"]
-  S2 --> S3["3. Richer context assembly in the peek"]
+  S1["1. Minimal loop"] --> S2["2. Tools and edit format"]
+  S2 --> S3["3. Context assembly and context view"]
   S3 --> S4["4. Outer-harness loading: AGENTS.md, skills, MCP"]
   S4 --> S5["5. Hooks and permissions"]
   S5 --> S6["6. Sandboxing"]
@@ -90,13 +88,13 @@ flowchart LR
 
 > ⚠️ **One change to the suggested order:** don't leave evals entirely to the end. Seed a tiny smoke suite at Stage 2 (10 small tasks and a pass/fail script) and run it after every stage. Stage 9 then turns that seed into a proper eval harness. Anthropic, Cursor and Hamel Husain all treat measurement as the thing that drives harness work, not the last step.
 
-### Stage 1: Agent loop and peek
+### Stage 1: Minimal agent loop
 
-- **Done when:** the early cuts are complete: one-shot non-streaming chat over Ollama with JSONL turn events; a tiny web peek on that stream; then an agent loop with one tool (`read_file` or `bash`), max-turns guard, and tool results fed back until the model stops calling tools. REPL and streaming may land at the end of this stage or just after.
-- **You learn:** the request/response wire first, then the tool-use protocol (tool schema → tool call → tool result with matching ID), stop reasons, why the API is stateless, and how each step changes the peek.
-- **Read:** [Thorsten Ball: How to build an agent](https://ampcode.com/notes/how-to-build-an-agent) · [Claude tool use overview](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview) · [Unrolling the Codex agent loop](https://openai.com/index/unrolling-the-codex-agent-loop/) · [Ollama tool calling](https://docs.ollama.com/capabilities/tool-calling)
+- **Done when:** a CLI takes a prompt, streams the reply, offers one tool (`read_file` or `bash`), executes tool calls, feeds results back and stops when the model replies without a tool call. It also has a max-turns guard and writes a JSONL transcript.
+- **You learn:** the tool-use protocol end to end (tool schema → `tool_use` block → `tool_result` with matching ID), stop reasons, streaming events, and why the API is stateless, so you resend the full history each turn.
+- **Read:** [Thorsten Ball: How to build an agent](https://ampcode.com/notes/how-to-build-an-agent) · [Claude tool use overview](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview) · [Unrolling the Codex agent loop](https://openai.com/index/unrolling-the-codex-agent-loop/)
 - **Episode angle:** "An agent is a while loop: building one live, from first principles."
-- **Pitfalls:** mismatched tool-call IDs; dropping the assistant's tool-call message before appending results; not handling parallel tool calls; an infinite loop with no turn or budget cap; jumping to streaming before the non-streaming path is solid.
+- **Pitfalls:** mismatched tool-call IDs; dropping the assistant's tool-call message before appending results; not handling parallel tool calls; an infinite loop with no turn or budget cap; parsing partial JSON while streaming.
 
 ### Stage 2: Tool registry, file and shell tools, edit format
 
@@ -368,8 +366,8 @@ Keep a **thin internal model interface** and write one adapter per provider. No 
 
 **Recommendation:**
 
-- **Early milestones:** raw HTTP to Ollama behind a thin provider seam ([ADR 0001](adr/0001-python-raw-http-ollama-first.md)). No SDK or framework until that path is understood.
-- Later: native adapters for Anthropic and OpenAI (caching studies); OpenAI-compatible adapter for Ollama, Groq, DeepSeek and OpenRouter if it still earns its keep.
+- Use native adapters for Anthropic and OpenAI, where you'll study caching.
+- Use the OpenAI-compatible adapter for Ollama, Groq, DeepSeek and OpenRouter.
 - Select the provider and model per stage, or per subagent, in config.
 - **Episode angle:** "What does an agent run cost? The same task on five providers, metered turn by turn."
 

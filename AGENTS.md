@@ -2,7 +2,7 @@
 
 peekaboo is a learning project: a mini coding agent / inner harness with a transparent per-turn context view. It is built in public, and it is not for production.
 
-Read [README.md](README.md) for the vision, [docs/gameplan.md](docs/gameplan.md) for the long plan, [GLOSSARY.md](GLOSSARY.md) for terms, and [docs/adr/](docs/adr/) for decisions.
+Read [README.md](README.md) for the vision, [docs/early-cuts.md](docs/early-cuts.md) for the first milestones, [docs/gameplan.md](docs/gameplan.md) for the longer reference plan, [GLOSSARY.md](GLOSSARY.md) for terms, and [docs/adr/](docs/adr/) for decisions.
 
 Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provider seam for paid APIs later. Product: **CLI** plus a **separate peek** (JSONL first, then a tiny web viewer). Do not introduce SDKs, agent frameworks, or a full TUI unless an ADR says so.
 

@@ -4,10 +4,7 @@ The product is a **CLI coding agent** plus a **separate peek surface**. Peek sta
 
 ## Early sequence
 
-1. One-shot **chat loop** (non-streaming) over Ollama, emitting turn events.
-2. Tiny **web peek** on that event stream.
-3. **Agent loop** with exactly one tool.
-4. Then REPL, streaming, and further roadmap stages.
+See [docs/early-cuts.md](../early-cuts.md). In short: one-shot chat + JSONL → web peek → one-tool agent loop → REPL/streaming, then the longer [gameplan.md](../gameplan.md) ladder.
 
 ## Considered options
 
