@@ -30,39 +30,41 @@ loop:
     maybe_compact(messages)
 ```
 
-### Architecture
+### Feature map
+
+The architecture is not decided yet; this map only groups the features peekaboo will have.
 
 ```mermaid
-flowchart TB
-  subgraph OUTER["Outer harness: open-format config"]
-    AG["AGENTS.md (nested)"]
-    SK["Skills folders (SKILL.md)"]
-    MCPCFG["MCP server config"]
-    HK["Hooks and permission rules"]
-  end
-
-  subgraph INNER["Inner harness: runtime"]
-    UI["CLI / TUI"] --> LOOP["Agent loop"]
-    LOOP --> CTX["Context assembler"]
-    CTX --> VIEW["Context view: tokens, cost, cache hits per turn"]
-    CTX --> MODEL["Model client: streaming, tool-use protocol, caching"]
-    MODEL --> LOOP
-    LOOP --> REG["Tool registry and dispatcher"]
-    REG --> GATE["Hooks and permission gate"]
-    GATE --> SBX["Sandbox: fs, shell, network"]
-    REG --> MCPC["MCP client"]
-    LOOP --> CMP["Compaction and memory"]
-    LOOP --> SUB["Subagent spawner"]
-    LOOP --> TRACE["Trace log (JSONL)"]
-    TRACE --> EVAL["Eval runner"]
-  end
-
-  AG --> CTX
-  SK --> CTX
-  MCPCFG --> MCPC
-  HK --> GATE
-  MODEL <--> API[("Model API")]
-  MCPC <--> EXT[("MCP servers")]
+mindmap
+  root((peekaboo))
+    Loop
+      Agent loop
+    Tools
+      Tools and an edit format
+      MCP client
+    Context
+      Context assembly
+      Transparent context view
+        Per-turn tokens
+        Cost
+        Cache hits
+    Outer-harness loading
+      AGENTS.md
+      Skills
+      MCP configs
+    Control
+      Hooks
+      Permissions
+      Sandboxing
+    Longevity and quality
+      Compaction
+      Memory
+      Subagents
+      Tracing
+      Evals
+    Model providers
+      Local via Ollama
+      Paid APIs
 ```
 
 ### Differentiating angle: the transparent context view
