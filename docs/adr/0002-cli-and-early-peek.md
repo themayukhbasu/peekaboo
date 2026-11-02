@@ -4,7 +4,7 @@ The product is a **CLI coding agent** plus a **separate peek surface**. Peek sta
 
 ## Early sequence
 
-See [docs/early-cuts.md](../early-cuts.md). In short: one-shot chat + JSONL → web peek → one-tool agent loop → REPL/streaming, then the longer [gameplan.md](../gameplan.md) ladder.
+See [docs/early-cuts.md](../early-cuts.md). In short: one-shot chat + JSONL → web peek → one-tool agent loop → REPL/streaming. Later stages are decided later; [harness-landscape.md](../reference/harness-landscape.md) is reference only.
 
 ## Considered options
 

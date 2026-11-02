@@ -37,7 +37,7 @@ Staged so peek lands before tool complexity. See [docs/early-cuts.md](docs/early
 
 ## Roadmap
 
-After the early cuts, capability grows in the longer plan in [docs/gameplan.md](docs/gameplan.md) (unchanged reference plan):
+After the early cuts, later capability is still fog; a research survey of possible stages lives in [docs/reference/harness-landscape.md](docs/reference/harness-landscape.md) (not the living plan):
 
 1. Tools and an edit format
 2. Richer context assembly (tokens, cost, cache) in the peek

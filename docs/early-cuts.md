@@ -1,6 +1,6 @@
 # Early cuts
 
-How the first milestones are sliced for learning. The longer stage ladder stays in [gameplan.md](gameplan.md); this file is the deliberate front of that plan. Decisions: [ADR 0001](adr/0001-python-raw-http-ollama-first.md), [ADR 0002](adr/0002-cli-and-early-peek.md). Terms: [GLOSSARY.md](../GLOSSARY.md).
+How the first milestones are sliced for learning. Later stages stay fog until more grill / wayfinder sessions; [reference/harness-landscape.md](reference/harness-landscape.md) is a research survey only. Decisions: [ADR 0001](adr/0001-python-raw-http-ollama-first.md), [ADR 0002](adr/0002-cli-and-early-peek.md). Terms: [GLOSSARY.md](../GLOSSARY.md).
 
 ## Sequence
 
@@ -9,7 +9,7 @@ How the first milestones are sliced for learning. The longer stage ladder stays 
 3. **Agent loop with one tool** — e.g. `read_file` or `bash`, with a max-turns guard.
 4. **REPL**, then **streaming**.
 
-After that, follow the gameplan from tools/edit format onward.
+After that, decide the next ladder deliberately — do not treat the landscape survey as the plan.
 
 ## Why this order
 
