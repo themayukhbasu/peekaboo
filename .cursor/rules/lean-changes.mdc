@@ -1,0 +1,12 @@
+---
+description: Keep documentation and diagram changes lean, and skip checks nobody asked for
+alwaysApply: true
+---
+
+# Lean changes
+
+- Keep documentation and diagram changes lean.
+- Do not install packages, or render Mermaid or Markdown, to validate documentation. GitHub renders Mermaid.
+- Verify only what the change actually needs.
+- Once the edit is done, commit and push rather than running extra checks.
+- Do not spend tokens on work nobody asked for.
