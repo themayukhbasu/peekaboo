@@ -27,6 +27,8 @@ Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provide
 - Before opening a PR, run the project's `verify-*` skill if one exists, otherwise the tests and linters that exist.
 - Review comments are fixed on the same branch, with a reply under each comment saying what changed.
 - Research findings go on throwaway `research/<slug>` branches with no PR. Tutoring notes go in `docs/learning/` by PR and count toward the limits above.
+- PR descriptions are concise. Use diagrams (Mermaid in Markdown) wherever they make the change easier to follow, e.g. data flow, sequence or state.
+- When a PR implements a tricky concept (often one the researcher looked into), cite the sources: link the primary sources and any research branch or ticket it builds on.
 
 ## Build and test
 
