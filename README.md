@@ -50,4 +50,14 @@ After the early cuts, later capability is still fog; a research survey of possib
 
 ## Status
 
-Early days. Learning project, not for production. Language and early shape are decided; most harness code is not started yet.
+Early days. Learning project, not for production. The installable package is a skeleton: `peekaboo` prints help or the version. The chat loop, the peek, and the agent loop come in later milestones.
+
+## Development
+
+uv is the package manager. See [AGENTS.md](AGENTS.md) for the builder commands.
+
+```bash
+uv sync
+uv run python -m unittest discover -s tests
+uv run peekaboo --help
+```

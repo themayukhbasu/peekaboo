@@ -1,0 +1,60 @@
+"""Smoke tests for the package skeleton."""
+
+import subprocess
+import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
+
+from peekaboo.cli import main
+from peekaboo.config import Config, load_config
+
+_HELP = """\
+usage: peekaboo [--help] [--version]
+
+Learning harness. This command prints help or the version.
+"""
+
+
+class LoadConfigTests(unittest.TestCase):
+    def test_returns_empty_settings(self):
+        self.assertEqual(load_config(), Config())
+
+
+class CliTests(unittest.TestCase):
+    def test_no_args_prints_help(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            status = main([])
+        self.assertEqual(status, 0)
+        self.assertEqual(stdout.getvalue(), _HELP)
+
+    def test_help_flag_prints_help(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            status = main(["--help"])
+        self.assertEqual(status, 0)
+        self.assertEqual(stdout.getvalue(), _HELP)
+
+    def test_version_prints_package_version(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            status = main(["--version"])
+        self.assertEqual(status, 0)
+        self.assertEqual(stdout.getvalue(), "peekaboo 0.1.0\n")
+
+    def test_unknown_argument_prints_help_on_stderr(self):
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            status = main(["chat"])
+        self.assertEqual(status, 2)
+        self.assertEqual(stderr.getvalue(), _HELP)
+
+    def test_console_script_prints_version(self):
+        completed = subprocess.run(
+            ["peekaboo", "--version"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(completed.stdout, "peekaboo 0.1.0\n")

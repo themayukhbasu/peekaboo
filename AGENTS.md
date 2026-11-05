@@ -33,4 +33,16 @@ Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provide
 
 ## Build and test
 
-Empty for now. Fill in when the first harness package exists.
+uv is the only package manager. From a checkout:
+
+- `uv sync` installs the package and the `peekaboo` console script.
+- `uv run python -m unittest discover -s tests` runs the tests.
+- `uv run peekaboo --help` runs the placeholder command.
+
+Before opening a PR, run the sync and the test command above. When a `verify-*` skill exists, run that too.
+
+Builders changing the package use these skills:
+
+- `codebase-design` for deep modules and where a seam goes.
+- `tdd` for tests at the public interface.
+- `code-review` for standards in `CODING_STANDARDS.md` and the originating issue.

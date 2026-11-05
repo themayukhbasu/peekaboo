@@ -18,3 +18,14 @@ logs/
 # Local model caches
 .ollama/
 *.gguf
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Local harness runs (`.peekaboo/runs/` and anything else under the directory)
+.peekaboo/
