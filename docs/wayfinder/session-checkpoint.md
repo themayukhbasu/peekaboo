@@ -2,14 +2,14 @@
 
 Working notes for the live charting session. Not a decision record. Confirmed decisions land only as wayfinder tickets. Existing ADRs, `docs/early-cuts.md`, and `docs/reference/harness-landscape.md` stay reference until a ticket says otherwise.
 
-Status: map charted. HITL grilling for several tool calls is answered; owner must post the resolution and close the ticket (this environment cannot write GitHub issues).
+Status: map charted. Frontier empty. Next step: `/to-spec`, then `/to-tickets`.
 
 ## Issues
 
 - Map: [First three milestones: chat loop, peek, agent loop](https://github.com/themayukhbasu/peekaboo/issues/9)
 - Closed: [Does the agent loop send a fixed system message?](https://github.com/themayukhbasu/peekaboo/issues/10)
 - Closed research: [What is Ollama's chat tool-call JSON?](https://github.com/themayukhbasu/peekaboo/issues/11)
-- Owner to close: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12) — answer settled; bot cannot `gh issue comment` / `close` here
+- Closed: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
 
 ## What this session is
 
@@ -68,18 +68,8 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 
 ## Frontier
 
-Empty once [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12) is closed on GitHub. Next step: `/to-spec`, then `/to-tickets`.
+Empty. Next step: `/to-spec`, then `/to-tickets`.
 
-## Answer ready to close on GitHub
+## Closed this session
 
-[What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
-
-When one assistant reply has several `tool_calls`, `run` executes every call in array order in the same run. It does not drop trailing calls and does not run them in parallel. Each result is appended to the message list; then comes the next model call. One turn event remains one model call; the N tool results belong to that step’s messages / peek.
-
-Each tool result sent to Ollama carries `tool_name` and, when the call has an `id`, `tool_call_id`. The peek matches call ↔ result by `id`. If a fixture omits `id`, match by array order.
-
-If one call in the batch fails (missing file, path outside the workspace), that call’s result is the short error string; later calls in the same batch still run; then the next model call. A tool failure is still not a crashed process and does not set `stop_reason` to `error`.
-
-**Map Decisions-so-far line to append** on [First three milestones: chat loop, peek, agent loop](https://github.com/themayukhbasu/peekaboo/issues/9):
-
-- [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12): all calls in array order same run; `tool_name` + `tool_call_id`; peek match by id (order fallback); mid-batch tool failure is an error-string result and the batch continues.
+[What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12): all calls in array order same run; `tool_name` + `tool_call_id`; peek match by id (order fallback); mid-batch tool failure is an error-string result and the batch continues. Recorded on the map’s Decisions so far.
