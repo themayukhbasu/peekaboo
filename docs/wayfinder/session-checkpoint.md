@@ -9,7 +9,7 @@ Status: map charted. Charting session stopped. Do not resolve a grilling ticket 
 - Map: [First three milestones: chat loop, peek, agent loop](https://github.com/themayukhbasu/peekaboo/issues/9)
 - Closed: [Does the agent loop send a fixed system message?](https://github.com/themayukhbasu/peekaboo/issues/10)
 - Closed research: [What is Ollama's chat tool-call JSON?](https://github.com/themayukhbasu/peekaboo/issues/11)
-- Frontier, owner live: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
+- In progress HITL: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12) — answers settled in chat; awaiting owner confirm to close
 
 ## What this session is
 
@@ -70,8 +70,10 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 
 [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
 
-**Settled on this ticket so far.** When one assistant reply has several `tool_calls`, `run` executes every call in array order in the same run, appends each tool result to the message list, then makes the next model call. It does not drop trailing calls. It does not run them in parallel. One turn event remains one model call; the N tool results belong to that step’s messages / peek, not to N extra model turns.
+**Proposed resolution (owner live; close only after confirm).** When one assistant reply has several `tool_calls`, `run` executes every call in array order in the same run. It does not drop trailing calls and does not run them in parallel. Each result is appended to the message list; then comes the next model call. One turn event remains one model call; the N tool results belong to that step’s messages / peek.
 
-**Match (settled).** Each tool result sent to Ollama carries `tool_name` and, when the call has an `id`, `tool_call_id`. The peek matches call ↔ result by `id`. If a fixture omits `id`, match by array order.
+Each tool result sent to Ollama carries `tool_name` and, when the call has an `id`, `tool_call_id`. The peek matches call ↔ result by `id`. If a fixture omits `id`, match by array order.
 
-Still open on this ticket: what happens if one call in the batch fails.
+If one call in the batch fails (missing file, path outside the workspace), that call’s result is the short error string; later calls in the same batch still run; then the next model call. A tool failure is still not a crashed process and does not set `stop_reason` to `error`.
+
+No further questions left on this ticket’s tree.
