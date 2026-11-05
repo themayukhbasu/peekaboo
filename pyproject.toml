@@ -1,0 +1,13 @@
+[project]
+name = "peekaboo"
+version = "0.1.0"
+description = "Learning-grade inner harness skeleton."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+peekaboo = "peekaboo.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
