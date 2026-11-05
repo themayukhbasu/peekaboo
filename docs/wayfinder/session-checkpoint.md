@@ -72,4 +72,6 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 
 **Settled on this ticket so far.** When one assistant reply has several `tool_calls`, `run` executes every call in array order in the same run, appends each tool result to the message list, then makes the next model call. It does not drop trailing calls. It does not run them in parallel. One turn event remains one model call; the N tool results belong to that step’s messages / peek, not to N extra model turns.
 
-Still open on this ticket: how results are matched back to calls on the wire and on the peek; what happens if one call in the batch fails.
+**Match (settled).** Each tool result sent to Ollama carries `tool_name` and, when the call has an `id`, `tool_call_id`. The peek matches call ↔ result by `id`. If a fixture omits `id`, match by array order.
+
+Still open on this ticket: what happens if one call in the batch fails.
