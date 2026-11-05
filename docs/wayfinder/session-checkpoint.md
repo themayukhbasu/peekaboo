@@ -2,11 +2,18 @@
 
 Working notes for the live charting session. Not a decision record. Confirmed decisions land only as wayfinder tickets. Existing ADRs, `docs/early-cuts.md`, and `docs/reference/harness-landscape.md` stay reference until a ticket says otherwise.
 
-Status: map charted. Frontier empty. Next step: `/to-spec`, then `/to-tickets`.
+Status: map charted; frontier empty; `/to-spec` and `/to-tickets` published. Builder frontier: scaffold ticket.
 
 ## Issues
 
 - Map: [First three milestones: chat loop, peek, agent loop](https://github.com/themayukhbasu/peekaboo/issues/9)
+- Spec: [Spec: first three milestones (chat loop, peek, agent loop)](https://github.com/themayukhbasu/peekaboo/issues/15)
+- Build: [Scaffold + coding standards for agents](https://github.com/themayukhbasu/peekaboo/issues/16) (frontier)
+- Build: [Config loader](https://github.com/themayukhbasu/peekaboo/issues/17)
+- Build: [One-shot chat loop writes a run file](https://github.com/themayukhbasu/peekaboo/issues/18)
+- Build: [Peek lists runs and shows chat turn events](https://github.com/themayukhbasu/peekaboo/issues/19)
+- Build: [Agent loop with read_file](https://github.com/themayukhbasu/peekaboo/issues/20)
+- Build: [Peek shows tools, tool calls, and tool results](https://github.com/themayukhbasu/peekaboo/issues/21)
 - Closed: [Does the agent loop send a fixed system message?](https://github.com/themayukhbasu/peekaboo/issues/10)
 - Closed research: [What is Ollama's chat tool-call JSON?](https://github.com/themayukhbasu/peekaboo/issues/11)
 - Closed: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
@@ -68,7 +75,7 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 
 ## Frontier
 
-Empty. Next step: `/to-spec`, then `/to-tickets`.
+Wayfinder frontier empty. Build frontier: #16 scaffold (uv-only coding standards). Then config → chat → peek ∥ agent → peek tools.
 
 ## Closed this session
 
