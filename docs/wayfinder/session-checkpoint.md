@@ -2,14 +2,14 @@
 
 Working notes for the live charting session. Not a decision record. Confirmed decisions land only as wayfinder tickets. Existing ADRs, `docs/early-cuts.md`, and `docs/reference/harness-landscape.md` stay reference until a ticket says otherwise.
 
-Status: map charted. Charting session stopped. Do not resolve a grilling ticket from a bot session.
+Status: map charted. Frontier empty. Next step: `/to-spec`, then `/to-tickets`.
 
 ## Issues
 
 - Map: [First three milestones: chat loop, peek, agent loop](https://github.com/themayukhbasu/peekaboo/issues/9)
 - Closed: [Does the agent loop send a fixed system message?](https://github.com/themayukhbasu/peekaboo/issues/10)
 - Closed research: [What is Ollama's chat tool-call JSON?](https://github.com/themayukhbasu/peekaboo/issues/11)
-- Frontier, owner live: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
+- Closed: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12)
 
 ## What this session is
 
@@ -68,4 +68,8 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 
 ## Frontier
 
-Next owner live: [What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12). Research on Ollama tool-call JSON is closed, so this grilling is unblocked.
+Empty. Next step: `/to-spec`, then `/to-tickets`.
+
+## Closed this session
+
+[What does the agent loop do with several tool calls in one response?](https://github.com/themayukhbasu/peekaboo/issues/12): all calls in array order same run; `tool_name` + `tool_call_id`; peek match by id (order fallback); mid-batch tool failure is an error-string result and the batch continues. Recorded on the map’s Decisions so far.
