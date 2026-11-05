@@ -16,7 +16,7 @@ Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provide
 ## Bot team
 
 - Three bots work here: a PM (lead; assigns tickets), a builder (code PRs via cloud agents) and a researcher (research tickets and tutoring). The owner, Mayukh, reviews and merges every PR. Bots never merge, approve, close PRs or push to main.
-- Work is tracked as GitHub Issues: wayfinder maps and decision tickets (`wayfinder:*` labels) and build tickets labelled `ready-for-agent`. Bots never resolve HITL tickets (grilling, prototype, HITL task); those need the owner live.
+- Work is tracked as GitHub Issues. Wayfinder maps and decision tickets use `wayfinder:*` labels. The builder claims `ready-for-agent`. The researcher claims `ready-for-researcher` (a `wayfinder:research` ticket carries that too; other research the owner hands out carries it alone). Bots never resolve HITL tickets (grilling, prototype, HITL task); those need the owner live.
 - Runs can stop mid-way (for example at a usage limit) and nothing replays them, so GitHub is the only state. Before starting new work, each bot resumes its own unfinished work first: an existing branch or PR for the issue, unresolved review comments, or an existing `research/<slug>` branch. The PM re-sends stalled tickets (assigned, open, no PR or findings after a day, or a draft PR without a description) as "resume #N" before assigning anything new, and never double-assigns.
 
 ## Pull requests

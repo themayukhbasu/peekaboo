@@ -20,6 +20,14 @@ _Avoid_: minimal agent, agent loop
 Repeated model calls that may include tool calls until the model replies without tools (or a guard stops it).
 _Avoid_: chat loop, workflow (reserve workflow for later multi-step patterns)
 
+**Run**:
+One execution of the chat loop or the agent loop for a single user message.
+_Avoid_: session, chat window
+
+**Session**:
+A process that stays open so the user can send another message after a run returns.
+_Avoid_: run, agent loop, chat loop
+
 **Peek**:
 The transparent per-turn view of what entered the context window (contents, later tokens, cost, cache).
 _Avoid_: debug log, transcript (a transcript may feed the peek; it is not the product idea)
