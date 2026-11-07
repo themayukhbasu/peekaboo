@@ -61,5 +61,7 @@ Runtime settings load through `peekaboo.config.load_config`, the only reader of 
 ```bash
 uv sync
 uv run python -m unittest discover -s tests
+uv run ruff check
+uv run ruff format --check
 uv run peekaboo --help
 ```
