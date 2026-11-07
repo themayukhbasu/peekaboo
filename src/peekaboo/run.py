@@ -107,7 +107,10 @@ def _event(
             parsed = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             parsed = raw.decode("utf-8", errors="replace")
-    assistant = _assistant(parsed) if status is not None and 200 <= status < 300 else None
+    if status is not None and 200 <= status < 300:
+        assistant = _assistant(parsed)
+    else:
+        assistant = None
     if assistant is None:
         error: str | None = _error_text(status, parsed, fallback)
         stop_reason = "error"
@@ -142,6 +145,8 @@ def _error_text(status: int | None, parsed: object, fallback: str) -> str:
         message = parsed.get("error")
         if isinstance(message, str) and message.strip() != "":
             return message
+    if status is not None and 200 <= status < 300:
+        return f"The provider returned HTTP {status} without an assistant message."
     if status is not None:
         return f"The provider returned HTTP {status}."
     return fallback

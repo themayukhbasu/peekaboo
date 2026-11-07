@@ -12,16 +12,16 @@ No daemon was run. The research note on ``research/ollama-chat-tool-calls``
 """
 
 import json
-import socket
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
-from urllib.parse import urlparse
 
 from peekaboo.cli import main
-from peekaboo.config import Config, load_config
+from peekaboo.config import Config
 from peekaboo.run import TransportError, run
 
 _FIXTURES = Path(__file__).parent / "fixtures"
@@ -99,6 +99,23 @@ class RunTests(unittest.TestCase):
             self.assertEqual(event["raw_response"]["error"], event["error"])
             self.assertNotIn("tools", event)
 
+    def test_success_status_without_assistant_names_the_gap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            transport = _Recording(200, b'{"done": true}')
+            path = run(
+                [_USER],
+                [],
+                config=_config(Path(directory)),
+                transport=transport,
+            )
+            event = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(event["stop_reason"], "error")
+            self.assertIsNone(event["assistant"])
+            self.assertEqual(
+                event["error"],
+                "The provider returned HTTP 200 without an assistant message.",
+            )
+
     def test_transport_failure_is_recorded(self):
         with tempfile.TemporaryDirectory() as directory:
 
@@ -148,46 +165,37 @@ class CliTests(unittest.TestCase):
         self.assertIn("peekaboo chat MESSAGE", stderr.getvalue())
         self.assertEqual(transport.calls, [])
 
+    def test_default_discovery_omits_the_opt_in_module(self):
+        root = Path(__file__).parents[1]
+        script = """
+import socket
+import unittest
+import dotenv
 
-def _listening(base_url: str) -> bool:
-    parsed = urlparse(base_url)
-    host = parsed.hostname
-    if host is None:
-        return False
-    port = parsed.port
-    if port is None:
-        port = 443 if parsed.scheme == "https" else 80
-    try:
-        with socket.create_connection((host, port), timeout=0.3):
-            return True
-    except OSError:
-        return False
+def boom(*args, **kwargs):
+    raise SystemExit("discovery touched the network or a dotenv file")
 
+socket.create_connection = boom
+dotenv.dotenv_values = boom
+suite = unittest.defaultTestLoader.discover("tests")
 
-class LiveOllamaSmoke(unittest.TestCase):
-    """Manual live check. Not a merge gate.
+def ids(item):
+    if isinstance(item, unittest.TestSuite):
+        for child in item:
+            yield from ids(child)
+    else:
+        yield item.id()
 
-    Skips when nothing is listening. A reply, including an error body,
-    is data: the test checks harness fields only.
-    """
-
-    def test_one_turn_when_a_daemon_listens(self):
-        loaded = load_config()
-        if not _listening(loaded.ollama_base_url):
-            self.skipTest(
-                f"Nothing is listening at {loaded.ollama_base_url}. "
-                "Live Ollama smoke skipped."
-            )
-        with tempfile.TemporaryDirectory() as directory:
-            config = Config(
-                model=loaded.model,
-                ollama_base_url=loaded.ollama_base_url,
-                http_timeout_seconds=loaded.http_timeout_seconds,
-                runs_dir=Path(directory),
-            )
-            path = run([_USER], [], config=config)
-            event = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(event["messages_sent"], [_USER])
-            self.assertIn(event["stop_reason"], ("stop", "error"))
-            self.assertNotIn("tools", event)
-            self.assertIn("raw_response", event)
+print("\\n".join(ids(suite)))
+"""
+        completed = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        for test_id in completed.stdout.splitlines():
+            self.assertNotIn("LiveOllamaSmoke", test_id)
+            self.assertFalse(test_id.startswith("live_smoke"))

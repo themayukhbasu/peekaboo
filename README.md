@@ -67,8 +67,8 @@ uv run peekaboo chat "why is the sky blue?"
 
 ### Live Ollama smoke
 
-`tests.test_chat.LiveOllamaSmoke` posts one chat to the configured Ollama base URL (default `http://127.0.0.1:11434`). If nothing is listening, the test skips with a clear message. It is not a merge gate. A live reply is only data: the test checks harness fields, not the model's words.
+Opt-in. `tests/live_smoke.py` is not named `test*.py`, so `unittest discover` does not load it, read `.env`, or call Ollama. If nothing is listening, the module skips. It is not a merge gate. A live reply is only data: harness fields, not the model's words.
 
 ```bash
-uv run python -m unittest tests.test_chat.LiveOllamaSmoke
+uv run python -m unittest tests.live_smoke
 ```
