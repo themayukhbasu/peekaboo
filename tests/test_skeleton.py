@@ -9,8 +9,9 @@ from peekaboo.cli import main
 
 _HELP = """\
 usage: peekaboo [--help] [--version]
+       peekaboo chat MESSAGE
 
-Learning harness. This command prints help or the version.
+Learning harness. `chat` sends one user message and prints the run path.
 """
 
 
@@ -39,7 +40,7 @@ class CliTests(unittest.TestCase):
     def test_unknown_argument_prints_help_on_stderr(self):
         stderr = StringIO()
         with redirect_stderr(stderr):
-            status = main(["chat"])
+            status = main(["nope"])
         self.assertEqual(status, 2)
         self.assertEqual(stderr.getvalue(), _HELP)
 

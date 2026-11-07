@@ -50,7 +50,7 @@ After the early cuts, later capability is still fog; a research survey of possib
 
 ## Status
 
-Early days. Learning project, not for production. The installable package is a skeleton: `peekaboo` prints help or the version. The chat loop, the peek, and the agent loop come in later milestones.
+Early days. Learning project, not for production. `peekaboo chat MESSAGE` sends one user message to local Ollama, writes one JSONL run under `.peekaboo/runs/`, and prints that path. The peek and the agent loop come in later milestones.
 
 ## Development
 
@@ -64,4 +64,13 @@ uv run python -m unittest discover -s tests
 uv run ruff check
 uv run ruff format --check
 uv run peekaboo --help
+uv run peekaboo chat "why is the sky blue?"
+```
+
+### Live Ollama smoke
+
+Opt-in. `tests/live_smoke.py` is not named `test*.py`, so `unittest discover` does not load it, read `.env`, or call Ollama. If nothing is listening, the module skips. It is not a merge gate. A live reply is only data: harness fields, not the model's words.
+
+```bash
+uv run python -m unittest tests.live_smoke
 ```
