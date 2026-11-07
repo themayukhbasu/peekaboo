@@ -4,7 +4,16 @@ peekaboo is a learning project: a mini coding agent / inner harness with a trans
 
 Read [README.md](README.md) for the vision, [docs/early-cuts.md](docs/early-cuts.md) for the first milestones, [GLOSSARY.md](GLOSSARY.md) for terms, and [docs/adr/](docs/adr/) for decisions. [docs/reference/harness-landscape.md](docs/reference/harness-landscape.md) is an agent-authored research survey only — not the living plan; prefer ADRs and early-cuts when they disagree.
 
-Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provider seam for paid APIs later. Product: **CLI** plus a **separate peek** (JSONL first, then a tiny web viewer). Do not introduce SDKs, agent frameworks, or a full TUI unless an ADR says so.
+Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provider seam for paid APIs later. Product: **CLI** plus a **separate peek** (JSONL first, then a tiny web viewer). Do not add a package that hides the inner harness or the provider seam — provider SDKs, agent frameworks, and similar — unless an ADR says so ([ADR 0001](docs/adr/0001-python-raw-http-ollama-first.md)). A popular library for an ordinary Python concern, such as reading a dotenv file or logging, is fine; decide each addition on that distinction. Do not introduce a full TUI unless an ADR says so.
+
+## Package conventions
+
+These match the merged config loader ([#24](https://github.com/themayukhbasu/peekaboo/pull/24)).
+
+- Spec defaults and environment-variable names are the frozen dataclass instances `default` and `env_name` in `peekaboo.config`. Add a setting as a field and read it as `default.model` or `env_name.model`. That shape is for these two namespaces. It is not a rule that every group of constants is a dataclass.
+- `load_config` reads dotenv with `python-dotenv` (`dotenv_values`). The process environment wins, including a blank value, and a missing or blank value keeps the spec default. An injected `environ` with no `dotenv_path` reads that mapping alone. A missing file adds nothing. Leave file syntax in the python-dotenv docs linked from the module docstring. Who may read the environment stays in [CODING_STANDARDS.md](CODING_STANDARDS.md).
+- Write a Python docstring as a short summary for the caller. Link upstream syntax instead of copying it.
+- Python docstrings in this package use reStructuredText inline literals (double backticks), as in `src/peekaboo/__init__.py` and `src/peekaboo/config.py`. Docutils treats single backticks as interpreted text and double backticks as inline literals ([PEP 287](https://peps.python.org/pep-0287/), [inline literals](https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html#inline-literals)). On #24 the owner asked why the doubles were there and, after that explanation, left them ([question](https://github.com/themayukhbasu/peekaboo/pull/24#discussion_r4500212220), [okay fine](https://github.com/themayukhbasu/peekaboo/pull/24#discussion_r4500381283)).
 
 ## Working rules
 
