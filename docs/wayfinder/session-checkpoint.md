@@ -2,13 +2,14 @@
 
 Working notes for the live charting session. Not a decision record. Confirmed decisions land only as wayfinder tickets. Existing ADRs, `docs/early-cuts.md`, and `docs/reference/harness-landscape.md` stay reference until a ticket says otherwise.
 
-Status: map charted; frontier empty; `/to-spec` and `/to-tickets` published. Builder frontier: scaffold ticket.
+Status: map charted; frontier empty; `/to-spec` and `/to-tickets` published. Scaffold closed. Extra build ticket for Ruff filed.
 
 ## Issues
 
 - Map: [First three milestones: chat loop, peek, agent loop](https://github.com/themayukhbasu/peekaboo/issues/9)
 - Spec: [Spec: first three milestones (chat loop, peek, agent loop)](https://github.com/themayukhbasu/peekaboo/issues/15)
-- Build: [Scaffold + coding standards for agents](https://github.com/themayukhbasu/peekaboo/issues/16) (frontier)
+- Build: [Scaffold + coding standards for agents](https://github.com/themayukhbasu/peekaboo/issues/16) (closed)
+- Build: [Ruff check and format in the verify path](https://github.com/themayukhbasu/peekaboo/issues/25) (unblocked)
 - Build: [Config loader](https://github.com/themayukhbasu/peekaboo/issues/17)
 - Build: [One-shot chat loop writes a run file](https://github.com/themayukhbasu/peekaboo/issues/18)
 - Build: [Peek lists runs and shows chat turn events](https://github.com/themayukhbasu/peekaboo/issues/19)
@@ -73,9 +74,13 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 - Bot rules stand: about 250 significant lines per PR, at most 3 open bot PRs, at most one new scheduled PR a day, bots never merge. HITL wayfinder tickets need the owner live.
 - GitHub issue list has not been checked yet. Check `gh repo view` is `themayukhbasu/peekaboo` before the first `gh issue create`.
 
+## Settled this session
+
+**Ruff as a build ticket (accepted).** Not a wayfinder ticket on the milestone map. File `ready-for-agent` [Ruff check and format in the verify path](https://github.com/themayukhbasu/peekaboo/issues/25): Ruff check + format via uv; document in `AGENTS.md` / `CODING_STANDARDS.md`. CI, pre-commit, and mypy stay out of that ticket.
+
 ## Frontier
 
-Wayfinder frontier empty. Build frontier: #16 scaffold (uv-only coding standards). Then config → chat → peek ∥ agent → peek tools.
+Wayfinder frontier empty. Build: config → chat → peek ∥ agent → peek tools; also unblocked [Ruff check and format in the verify path](https://github.com/themayukhbasu/peekaboo/issues/25).
 
 ## Closed this session
 
