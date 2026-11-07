@@ -1,8 +1,10 @@
 """Process settings.
 
 Callers receive a Config from load_config. That function is the only
-place in the package that reads the process environment. It does not
-open dotenv files.
+place in the package that reads the process environment or a dotenv
+file. With no mapping passed in, it reads ``.env`` from the working
+directory when that file is present, then overlays the process
+environment. A name set in both places keeps the process value.
 
 Defaults follow the numeric defaults in the first-milestones spec:
 
@@ -30,21 +32,37 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MODEL = "llama3.2"
-DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
-DEFAULT_HTTP_TIMEOUT_SECONDS = 120
-DEFAULT_RUNS_DIR = Path(".peekaboo/runs")
-DEFAULT_PEEK_HOST = "127.0.0.1"
-DEFAULT_PEEK_PORT = 8765
-DEFAULT_READ_FILE_MAX_CHARS = 32 * 1024
 
-_ENV_MODEL = "PEEKABOO_MODEL"
-_ENV_OLLAMA_BASE_URL = "PEEKABOO_OLLAMA_BASE_URL"
-_ENV_HTTP_TIMEOUT = "PEEKABOO_HTTP_TIMEOUT"
-_ENV_RUNS_DIR = "PEEKABOO_RUNS_DIR"
-_ENV_PEEK_HOST = "PEEKABOO_PEEK_HOST"
-_ENV_PEEK_PORT = "PEEKABOO_PEEK_PORT"
-_ENV_READ_FILE_MAX_CHARS = "PEEKABOO_READ_FILE_MAX_CHARS"
+@dataclass(frozen=True)
+class _Defaults:
+    """Spec defaults for each Config field."""
+
+    model: str = "llama3.2"
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    http_timeout_seconds: int = 120
+    runs_dir: Path = Path(".peekaboo/runs")
+    peek_host: str = "127.0.0.1"
+    peek_port: int = 8765
+    read_file_max_chars: int = 32 * 1024
+
+
+DEFAULTS = _Defaults()
+
+
+@dataclass(frozen=True)
+class _Env:
+    """Process environment names for each Config field."""
+
+    model: str = "PEEKABOO_MODEL"
+    ollama_base_url: str = "PEEKABOO_OLLAMA_BASE_URL"
+    http_timeout_seconds: str = "PEEKABOO_HTTP_TIMEOUT"
+    runs_dir: str = "PEEKABOO_RUNS_DIR"
+    peek_host: str = "PEEKABOO_PEEK_HOST"
+    peek_port: str = "PEEKABOO_PEEK_PORT"
+    read_file_max_chars: str = "PEEKABOO_READ_FILE_MAX_CHARS"
+
+
+ENV = _Env()
 
 
 class ConfigError(ValueError):
@@ -61,52 +79,84 @@ class Config:
     ``http_timeout_seconds`` is a whole number of seconds.
     """
 
-    model: str = DEFAULT_MODEL
-    ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
-    http_timeout_seconds: int = DEFAULT_HTTP_TIMEOUT_SECONDS
-    runs_dir: Path = DEFAULT_RUNS_DIR
-    peek_host: str = DEFAULT_PEEK_HOST
-    peek_port: int = DEFAULT_PEEK_PORT
-    read_file_max_chars: int = DEFAULT_READ_FILE_MAX_CHARS
+    model: str = DEFAULTS.model
+    ollama_base_url: str = DEFAULTS.ollama_base_url
+    http_timeout_seconds: int = DEFAULTS.http_timeout_seconds
+    runs_dir: Path = DEFAULTS.runs_dir
+    peek_host: str = DEFAULTS.peek_host
+    peek_port: int = DEFAULTS.peek_port
+    read_file_max_chars: int = DEFAULTS.read_file_max_chars
 
 
 def load_config(environ: Mapping[str, str] | None = None) -> Config:
     """Load settings for this process.
 
-    Pass ``environ`` to read that mapping instead of ``os.environ``.
-    Tests use this so they do not change the process environment.
+    With no ``environ``, merge ``.env`` in the working directory (if
+    that file is present) and then the process environment. The process
+    value wins when both name the same variable. Pass ``environ`` to
+    read that mapping alone; a ``.env`` file is not opened. Tests use
+    this so they do not change the process environment.
     """
-    env = os.environ if environ is None else environ
+    env = _process_environment() if environ is None else environ
     return Config(
-        model=_text(env, _ENV_MODEL, DEFAULT_MODEL),
+        model=_text(env, ENV.model, DEFAULTS.model),
         ollama_base_url=_base_url(env),
         http_timeout_seconds=_whole_number(
             env,
-            _ENV_HTTP_TIMEOUT,
-            DEFAULT_HTTP_TIMEOUT_SECONDS,
+            ENV.http_timeout_seconds,
+            DEFAULTS.http_timeout_seconds,
             minimum=1,
             maximum=None,
             description="a positive whole number of seconds",
         ),
-        runs_dir=Path(_text(env, _ENV_RUNS_DIR, str(DEFAULT_RUNS_DIR))),
-        peek_host=_text(env, _ENV_PEEK_HOST, DEFAULT_PEEK_HOST),
+        runs_dir=Path(_text(env, ENV.runs_dir, str(DEFAULTS.runs_dir))),
+        peek_host=_text(env, ENV.peek_host, DEFAULTS.peek_host),
         peek_port=_whole_number(
             env,
-            _ENV_PEEK_PORT,
-            DEFAULT_PEEK_PORT,
+            ENV.peek_port,
+            DEFAULTS.peek_port,
             minimum=1,
             maximum=65535,
             description="a whole number from 1 to 65535",
         ),
         read_file_max_chars=_whole_number(
             env,
-            _ENV_READ_FILE_MAX_CHARS,
-            DEFAULT_READ_FILE_MAX_CHARS,
+            ENV.read_file_max_chars,
+            DEFAULTS.read_file_max_chars,
             minimum=1,
             maximum=None,
             description="a positive whole number of characters",
         ),
     )
+
+
+def _process_environment() -> dict[str, str]:
+    merged = _read_dotenv(Path(".env"))
+    merged.update(os.environ)
+    return merged
+
+
+def _read_dotenv(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        stripped = line.strip()
+        if stripped == "" or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export "):
+            stripped = stripped.removeprefix("export ").strip()
+        key, separator, value = stripped.partition("=")
+        if separator == "" or key.strip() == "":
+            continue
+        values[key.strip()] = _unquote(value.strip())
+    return values
+
+
+def _unquote(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
 
 
 def _present(env: Mapping[str, str], name: str) -> str | None:
@@ -124,13 +174,13 @@ def _text(env: Mapping[str, str], name: str, default: str) -> str:
 
 
 def _base_url(env: Mapping[str, str]) -> str:
-    value = _present(env, _ENV_OLLAMA_BASE_URL)
+    value = _present(env, ENV.ollama_base_url)
     if value is None:
-        return DEFAULT_OLLAMA_BASE_URL
+        return DEFAULTS.ollama_base_url
     lowered = value.lower()
     if not (lowered.startswith("http://") or lowered.startswith("https://")):
         raise ConfigError(
-            f"{_ENV_OLLAMA_BASE_URL} must be an http or https URL, got {value!r}."
+            f"{ENV.ollama_base_url} must be an http or https URL, got {value!r}."
         )
     return value.rstrip("/")
 

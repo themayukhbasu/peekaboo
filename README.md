@@ -56,7 +56,7 @@ Early days. Learning project, not for production. The installable package is a s
 
 uv is the package manager. See [AGENTS.md](AGENTS.md) for the builder commands.
 
-Runtime settings load through `peekaboo.config.load_config`, the only reader of the process environment. Dotenv files are not opened. The default model is `llama3.2` (the tag in Ollama's `/api/chat` examples). The other defaults are an Ollama base URL of `http://127.0.0.1:11434`, an HTTP timeout of 120 seconds, runs under `.peekaboo/runs`, a peek bind of `127.0.0.1:8765`, and a `read_file` truncation limit of 32 KiB (32768 characters) of decoded text. Environment variable names are documented on that module.
+Runtime settings load through `peekaboo.config.load_config`, the only reader of the process environment and of a `.env` file in the working directory. The process environment overrides `.env` when both set the same name. The default model is `llama3.2` (the tag in Ollama's `/api/chat` examples). The other defaults are an Ollama base URL of `http://127.0.0.1:11434`, an HTTP timeout of 120 seconds, runs under `.peekaboo/runs`, a peek bind of `127.0.0.1:8765`, and a `read_file` truncation limit of 32 KiB (32768 characters) of decoded text. Environment variable names are documented on that module.
 
 ```bash
 uv sync

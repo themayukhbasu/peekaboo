@@ -1,7 +1,9 @@
 """Defaults and environment overrides for load_config."""
 
 import os
+import tempfile
 import unittest
+from contextlib import chdir
 from pathlib import Path
 from unittest.mock import patch
 
@@ -81,7 +83,41 @@ class LoadConfigTests(unittest.TestCase):
         self.assertEqual(config.model, "llama3.2")
 
     def test_omitted_mapping_reads_the_process_environment(self):
-        with patch.dict(os.environ, {"PEEKABOO_MODEL": "from-process"}, clear=False):
-            config = load_config()
+        with tempfile.TemporaryDirectory() as directory:
+            with chdir(directory):
+                with patch.dict(
+                    os.environ, {"PEEKABOO_MODEL": "from-process"}, clear=False
+                ):
+                    config = load_config()
         self.assertEqual(config.model, "from-process")
         self.assertEqual(config.http_timeout_seconds, 120)
+
+    def test_dotenv_value_applies_when_unset_in_the_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / ".env").write_text(
+                "PEEKABOO_MODEL=from-dotenv\n", encoding="utf-8"
+            )
+            with chdir(directory):
+                with patch.dict(os.environ, {}, clear=False):
+                    os.environ.pop("PEEKABOO_MODEL", None)
+                    config = load_config()
+        self.assertEqual(config.model, "from-dotenv")
+
+    def test_process_environment_overrides_dotenv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / ".env").write_text(
+                "PEEKABOO_MODEL=from-dotenv\n", encoding="utf-8"
+            )
+            with chdir(directory):
+                with patch.dict(os.environ, {"PEEKABOO_MODEL": "from-process"}):
+                    config = load_config()
+        self.assertEqual(config.model, "from-process")
+
+    def test_injected_mapping_ignores_dotenv_on_disk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / ".env").write_text(
+                "PEEKABOO_MODEL=from-dotenv\n", encoding="utf-8"
+            )
+            with chdir(directory):
+                config = load_config({})
+        self.assertEqual(config.model, "llama3.2")
