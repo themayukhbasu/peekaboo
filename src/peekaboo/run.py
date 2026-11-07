@@ -9,14 +9,13 @@ import json
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
-from datetime import datetime, timezone
 from pathlib import Path
 
 from peekaboo.config import Config
+from peekaboo.runs import write_turn
 
 Transport = Callable[[str, bytes, float], tuple[int, bytes]]
 
-_STAMP = "%Y%m%dT%H%M%S%fZ"
 _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -75,7 +74,7 @@ def run(
         event = _event(config.model, sent, None, None, str(error))
     else:
         event = _event(config.model, sent, status, raw, "The provider call failed.")
-    return _write_turn(config.runs_dir, event)
+    return write_turn(config.runs_dir, event)
 
 
 def _messages(messages: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
@@ -150,19 +149,3 @@ def _error_text(status: int | None, parsed: object, fallback: str) -> str:
     if status is not None:
         return f"The provider returned HTTP {status}."
     return fallback
-
-
-def _write_turn(runs_dir: Path, event: dict[str, object]) -> Path:
-    runs_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime(_STAMP)
-    line = json.dumps(event, ensure_ascii=False) + "\n"
-    for suffix in range(100):
-        name = f"{stamp}.jsonl" if suffix == 0 else f"{stamp}-{suffix}.jsonl"
-        path = runs_dir / name
-        try:
-            with path.open("x", encoding="utf-8") as handle:
-                handle.write(line)
-        except FileExistsError:
-            continue
-        return path
-    raise OSError(f"Could not create a run file in {runs_dir}.")
