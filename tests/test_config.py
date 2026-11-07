@@ -113,6 +113,23 @@ class LoadConfigTests(unittest.TestCase):
                     config = load_config()
         self.assertEqual(config.model, "from-process")
 
+    def test_blank_process_value_beats_dotenv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / ".env").write_text(
+                'export PEEKABOO_MODEL="from-dotenv"\n'
+                "PEEKABOO_HTTP_TIMEOUT=45\n"
+                "PEEKABOO_PEEK_HOST='localhost'\n",
+                encoding="utf-8",
+            )
+            with chdir(directory):
+                with patch.dict(os.environ, {"PEEKABOO_MODEL": "   "}, clear=False):
+                    os.environ.pop("PEEKABOO_HTTP_TIMEOUT", None)
+                    os.environ.pop("PEEKABOO_PEEK_HOST", None)
+                    config = load_config()
+        self.assertEqual(config.model, "llama3.2")
+        self.assertEqual(config.http_timeout_seconds, 45)
+        self.assertEqual(config.peek_host, "localhost")
+
     def test_injected_mapping_ignores_dotenv_on_disk(self):
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / ".env").write_text(
