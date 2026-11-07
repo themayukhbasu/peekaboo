@@ -1,3 +1,5 @@
+# Help text is repeated so the test checks CLI output, not a private constant.
+# pylint: disable=duplicate-code
 """Smoke tests for the package skeleton."""
 
 import subprocess
@@ -10,8 +12,10 @@ from peekaboo.cli import main
 _HELP = """\
 usage: peekaboo [--help] [--version]
        peekaboo chat MESSAGE
+       peekaboo peek
 
 Learning harness. `chat` sends one user message and prints the run path.
+`peek` serves a local page of those runs.
 """
 
 
