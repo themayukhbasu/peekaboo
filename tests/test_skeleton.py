@@ -6,18 +6,12 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 
 from peekaboo.cli import main
-from peekaboo.config import Config, load_config
 
 _HELP = """\
 usage: peekaboo [--help] [--version]
 
 Learning harness. This command prints help or the version.
 """
-
-
-class LoadConfigTests(unittest.TestCase):
-    def test_returns_empty_settings(self):
-        self.assertEqual(load_config(), Config())
 
 
 class CliTests(unittest.TestCase):

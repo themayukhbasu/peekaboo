@@ -12,7 +12,7 @@ Use the vocabulary in the `codebase-design` skill: module, interface, seam, adap
 
 - Put behaviour behind a small interface. Callers and tests use that interface.
 - Add a seam when a second adapter exists. Until then, keep one function or type in the module that owns the decision.
-- The config seam is `peekaboo.config.load_config`. It returns a `Config`. Feature code takes that value. The only place that may read the environment (`os.environ`, `os.getenv`, and similar) is `load_config`.
+- The config seam is `peekaboo.config.load_config`. It returns a `Config`. Feature code takes that value. The only place that may read the environment (`os.environ`, `os.getenv`, and similar) or a dotenv file is `load_config`.
 - Keep a single settings reader. Extend `Config` and `load_config` when a later ticket needs a setting.
 
 ## Helpers
