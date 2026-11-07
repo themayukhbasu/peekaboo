@@ -6,6 +6,12 @@ Agent-facing rules for the peekaboo package. The `code-review` skill reads this 
 
 uv is the only package manager. Project metadata lives in `pyproject.toml` and the lockfile is `uv.lock`. Install, test, and run the console script with `uv sync` and `uv run`.
 
+## Lint and format
+
+Ruff is the lint and format gate. It is a uv-managed dev dependency, configured under `[tool.ruff]` in `pyproject.toml`, and `uv sync` installs it. Before a pull request, `uv run ruff check` and `uv run ruff format --check` must pass.
+
+The lint selection is Pyflakes (`F`) and pycodestyle's import, statement, and runtime errors (`E4`, `E7`, `E9`): undefined names, unused imports, and syntax problems. Format follows Ruff's defaults for Python (88 columns, double quotes). Markdown is outside this gate. Ruff is not a provider SDK, an agent framework, or a type checker.
+
 ## Modules and seams
 
 Use the vocabulary in the `codebase-design` skill: module, interface, seam, adapter, depth.

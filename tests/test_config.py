@@ -65,9 +65,7 @@ class LoadConfigTests(unittest.TestCase):
         self.assertEqual(config.read_file_max_chars, 128)
 
     def test_blank_value_keeps_the_default(self):
-        config = load_config(
-            {"PEEKABOO_MODEL": "  ", "PEEKABOO_HTTP_TIMEOUT": ""}
-        )
+        config = load_config({"PEEKABOO_MODEL": "  ", "PEEKABOO_HTTP_TIMEOUT": ""})
         self.assertEqual(config.model, "llama3.2")
         self.assertEqual(config.http_timeout_seconds, 120)
 
@@ -209,8 +207,7 @@ class LoadConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "settings.env"
             path.write_text(
-                "PEEKABOO_MODEL\n"
-                "PEEKABOO_HTTP_TIMEOUT=${MISSING_TIMEOUT_991:-15}\n",
+                "PEEKABOO_MODEL\nPEEKABOO_HTTP_TIMEOUT=${MISSING_TIMEOUT_991:-15}\n",
                 encoding="utf-8",
             )
             with patch.dict(os.environ, {}, clear=False):

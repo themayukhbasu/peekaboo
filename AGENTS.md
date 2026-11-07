@@ -35,11 +35,15 @@ Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provide
 
 uv is the only package manager. From a checkout:
 
-- `uv sync` installs the package and the `peekaboo` console script.
+- `uv sync` installs the package, the `peekaboo` console script, and the Ruff dev dependency.
 - `uv run python -m unittest discover -s tests` runs the tests.
+- `uv run ruff check` lints Python.
+- `uv run ruff format --check` checks Python formatting. `uv run ruff format` applies it.
 - `uv run peekaboo --help` runs the placeholder command.
 
-Before opening a PR, run the sync and the test command above. When a `verify-*` skill exists, run that too.
+Ruff is the lint and format gate for those two commands. It is a dev dependency, not a provider SDK or an agent framework.
+
+Before opening a PR, run the sync, test, lint, and format commands above. When a `verify-*` skill exists, run that too.
 
 Builders changing the package use these skills:
 
