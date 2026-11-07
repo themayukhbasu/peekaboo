@@ -4,7 +4,7 @@ peekaboo is a learning project: a mini coding agent / inner harness with a trans
 
 Read [README.md](README.md) for the vision, [docs/early-cuts.md](docs/early-cuts.md) for the first milestones, [GLOSSARY.md](GLOSSARY.md) for terms, and [docs/adr/](docs/adr/) for decisions. [docs/reference/harness-landscape.md](docs/reference/harness-landscape.md) is an agent-authored research survey only — not the living plan; prefer ADRs and early-cuts when they disagree.
 
-Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provider seam for paid APIs later. Product: **CLI** plus a **separate peek** (JSONL first, then a tiny web viewer). Do not introduce provider SDKs, agent frameworks, or a full TUI unless an ADR says so. `python-dotenv`, the parser `load_config` uses, is not a provider SDK or an agent framework ([ADR 0001](docs/adr/0001-python-raw-http-ollama-first.md)). That acceptance does not approve any other dependency; other choices stay subject to the ADRs and the scope of the change.
+Stack for early milestones: **Python**, **raw HTTP** to **Ollama**, thin provider seam for paid APIs later. Product: **CLI** plus a **separate peek** (JSONL first, then a tiny web viewer). Do not add a package that hides the inner harness or the provider seam — provider SDKs, agent frameworks, and similar — unless an ADR says so ([ADR 0001](docs/adr/0001-python-raw-http-ollama-first.md)). A popular library for an ordinary Python concern, such as reading a dotenv file or logging, is fine; decide each addition on that distinction. Do not introduce a full TUI unless an ADR says so.
 
 ## Package conventions
 
