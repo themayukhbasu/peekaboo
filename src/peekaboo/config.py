@@ -1,62 +1,20 @@
 """Process settings.
 
-Callers receive a Config from load_config. That function is the only
-place in the package that reads the process environment or a dotenv
-file. With no arguments, it reads ``.env`` in the working directory
-when that file is present, then overlays the process environment. A
-name set in both places keeps the process value, including a blank one,
-so a blank process value uses the spec default rather than the file.
-Pass ``environ`` to supply that overlay instead of the process, and
+``load_config`` is the only reader of the process environment and of a
+dotenv file. With no arguments it reads ``.env`` in the working directory
+when that file is present, then overlays the process environment. A name
+set in both places keeps the process value, including a blank one. Pass
+``environ`` to supply that overlay instead of the process, and
 ``dotenv_path`` to read a chosen file. An injected mapping with no
-``dotenv_path`` does not open a file. A missing file adds nothing.
-Parent directories are not searched.
+``dotenv_path`` does not open a file.
 
-The file is parsed by python-dotenv's ``dotenv_values`` (UTF-8). A
-leading UTF-8 BOM is ignored. The rules below are that package's, not
-a private parser. File format:
+The file is parsed by python-dotenv's ``dotenv_values`` (UTF-8). Syntax
+and expansion follow that package:
 https://github.com/theskumar/python-dotenv#file-format
-Variable expansion:
-https://github.com/theskumar/python-dotenv#variable-expansion
-Bare ``$NAME`` is not expanded (Getting started):
-https://github.com/theskumar/python-dotenv#getting-started
 
-A line is ``NAME=VALUE`` or ``export NAME=VALUE``. Blank lines and
-``#`` comments are skipped. A name with no ``=`` is ignored. ``NAME=``
-is blank. Spaces around the name, ``=``, and the value are ignored.
-An unquoted value drops a trailing `` #`` comment.
-
-Single or double quotes may wrap a value. Quotes do not turn expansion
-off. Double-quoted values decode the C-style escapes in the file-format
-docs, including newline and tab. Single-quoted values decode only a
-backslash and a single quote, so a backslash followed by n stays as
-written.
-
-``${NAME}`` and ``${NAME:-default}`` expand. Look-up uses an earlier
-binding in the file, then the process environment, then the ``:-``
-default, then an empty string. A later binding in the file is not
-visible. The injected ``environ`` mapping is not an expansion source;
-it only overlays the parsed result. An expanded empty string is blank,
-so the spec default applies.
-
-Defaults follow the numeric defaults in the first-milestones spec:
-
-* ``model`` — ``llama3.2``, the tag in Ollama's ``/api/chat`` examples.
-  Override with ``PEEKABOO_MODEL``.
-* ``ollama_base_url`` — ``http://127.0.0.1:11434``.
-  Override with ``PEEKABOO_OLLAMA_BASE_URL``, an http or https URL.
-  This is not ``OLLAMA_HOST``: that variable is the daemon bind address
-  and is often a host:port with no scheme, or ``0.0.0.0``.
-* ``http_timeout_seconds`` — ``120``. Override with ``PEEKABOO_HTTP_TIMEOUT``.
-* ``runs_dir`` — ``.peekaboo/runs``. Override with ``PEEKABOO_RUNS_DIR``.
-* ``peek_host`` / ``peek_port`` — ``127.0.0.1`` and ``8765``.
-  Override with ``PEEKABOO_PEEK_HOST`` and ``PEEKABOO_PEEK_PORT``.
-* ``read_file_max_chars`` — ``32768`` (32 KiB of decoded text, counted
-  in characters). Override with ``PEEKABOO_READ_FILE_MAX_CHARS``.
-
-A missing or blank variable keeps its default. A non-blank value that
-cannot be used raises ConfigError and names the variable. Timeouts and
-the truncation limit are positive whole numbers. The peek port is a
-whole number from 1 to 65535.
+Defaults live on ``default.*`` and variable names on ``env_name.*``.
+A missing or blank value keeps its default. A non-blank value that
+cannot be used raises ``ConfigError`` and names the variable.
 """
 
 import os
