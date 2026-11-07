@@ -50,7 +50,7 @@ After the early cuts, later capability is still fog; a research survey of possib
 
 ## Status
 
-Early days. Learning project, not for production. The installable package is a skeleton: `peekaboo` prints help or the version. The chat loop, the peek, and the agent loop come in later milestones.
+Early days. Learning project, not for production. `peekaboo chat MESSAGE` sends one user message to local Ollama, writes one JSONL run under `.peekaboo/runs/`, and prints that path. The peek and the agent loop come in later milestones.
 
 ## Development
 
@@ -62,4 +62,13 @@ Runtime settings load through `peekaboo.config.load_config`, the only reader of 
 uv sync
 uv run python -m unittest discover -s tests
 uv run peekaboo --help
+uv run peekaboo chat "why is the sky blue?"
+```
+
+### Live Ollama smoke
+
+`tests.test_chat.LiveOllamaSmoke` posts one chat to the configured Ollama base URL (default `http://127.0.0.1:11434`). If nothing is listening, the test skips with a clear message. It is not a merge gate. A live reply is only data: the test checks harness fields, not the model's words.
+
+```bash
+uv run python -m unittest tests.test_chat.LiveOllamaSmoke
 ```
