@@ -95,7 +95,10 @@ def _names(runs_dir: Path) -> list[str]:
 
 
 def _jsonl(runs_dir: Path, name: str) -> Path | None:
-    """Return one regular ``*.jsonl`` file named ``name`` inside ``runs_dir``."""
+    """Return one regular ``*.jsonl`` file named ``name`` inside ``runs_dir``.
+
+    A path the OS rejects, including an embedded null, is missing.
+    """
     if not name.endswith(".jsonl") or name != Path(name).name:
         return None
     root = runs_dir.resolve()
@@ -105,7 +108,7 @@ def _jsonl(runs_dir: Path, name: str) -> Path | None:
             return None
         if candidate.resolve().parent != root:
             return None
-    except OSError:
+    except (OSError, ValueError):
         return None
     return candidate
 

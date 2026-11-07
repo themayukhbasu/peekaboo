@@ -4,12 +4,11 @@ The client is ``http.client``. No browser and no Ollama.
 """
 
 import json
-import subprocess
 import tempfile
 import threading
 import time
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from http.client import HTTPConnection
 from importlib.resources import files
 from io import StringIO
@@ -152,6 +151,17 @@ class PeekTests(unittest.TestCase):
             self.assertNotIn("SECRET-OUTSIDE", body)
             self.assertNotIn(str(secret), body)
 
+    def test_null_byte_in_the_run_name_is_a_missing_run(self) -> None:
+        """A decoded NUL in the run name is a 404, not a dropped connection."""
+        with tempfile.TemporaryDirectory() as directory:
+            runs = Path(directory)
+            (runs / "ok.jsonl").write_text("{}\n", encoding="utf-8")
+            with _Peek(runs) as peek:
+                status, body = peek.get("/runs/a%00.jsonl")
+        self.assertEqual(status, 404)
+        self.assertIn("No such run.", body)
+        self.assertNotIn("ok.jsonl", body)
+
     def test_absent_directory_and_bad_lines_stay_on_the_page(self) -> None:
         """A missing directory or a bad line is a short page, not a traceback."""
         with tempfile.TemporaryDirectory() as directory:
@@ -182,19 +192,16 @@ class PeekTests(unittest.TestCase):
         self.assertIn("This run cannot be read as text.", byte_body)
 
     def test_help_and_the_packaged_page(self) -> None:
-        """``peekaboo peek --help`` and the installed shell agree on the page."""
+        """In-process peek help and the packaged shell agree on the page."""
         shell = files("peekaboo").joinpath("peek.html").read_text(encoding="utf-8")
         self.assertIn("<title>Peek</title>", shell)
         self.assertIn("<!--PEEK-->", shell)
-        completed = subprocess.run(
-            ["peekaboo", "peek", "--help"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertIn("http://127.0.0.1:8765", completed.stdout)
-        self.assertIn("Ctrl-C", completed.stdout)
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            status = main(["peek", "--help"])
+        self.assertEqual(status, 0)
+        self.assertIn("http://127.0.0.1:8765", stdout.getvalue())
+        self.assertIn("Ctrl-C", stdout.getvalue())
         error = StringIO()
         with redirect_stderr(error):
             status = main(["peek", "extra"])
