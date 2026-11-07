@@ -1,3 +1,5 @@
+# Help text is repeated so the test checks CLI output, not a private constant.
+# pylint: disable=duplicate-code
 """Smoke tests for the package skeleton."""
 
 import subprocess

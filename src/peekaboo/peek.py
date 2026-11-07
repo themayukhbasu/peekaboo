@@ -7,7 +7,9 @@ the model or write run files.
 import html
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from importlib.resources import files
+
+# files() is stdlib from Python 3.9. This package requires 3.12.
+from importlib.resources import files  # pylint: disable=no-name-in-module
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
 
@@ -33,8 +35,11 @@ class _Server(HTTPServer):
 class _Handler(BaseHTTPRequestHandler):
     """GET handler for the runs list and one run page."""
 
-    def do_GET(self) -> None:
-        """Write the HTML page for this request path."""
+    def do_GET(self) -> None:  # pylint: disable=invalid-name
+        """Write the HTML page for this request path.
+
+        ``BaseHTTPRequestHandler`` requires the name ``do_GET``.
+        """
         server = self.server
         if not isinstance(server, _Server):
             raise RuntimeError("The peek handler was not bound with bind.")
@@ -46,8 +51,15 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(page)
 
-    def log_message(self, format: str, *args: object) -> None:
-        """Skip the default stderr access log."""
+    def log_message(
+        self,
+        format: str,  # pylint: disable=redefined-builtin
+        *args: object,
+    ) -> None:
+        """Skip the default stderr access log.
+
+        ``format`` is the name on ``BaseHTTPRequestHandler.log_message``.
+        """
 
 
 def _page(inner: str) -> bytes:

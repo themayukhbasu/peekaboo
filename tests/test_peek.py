@@ -10,7 +10,9 @@ import time
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from http.client import HTTPConnection
-from importlib.resources import files
+
+# files() is stdlib from Python 3.9. This package requires 3.12.
+from importlib.resources import files  # pylint: disable=no-name-in-module
 from io import StringIO
 from pathlib import Path
 
@@ -75,6 +77,8 @@ class _Peek:
 
 
 class PeekTests(unittest.TestCase):
+    """HTTP checks for the runs list and one run page."""
+
     def test_index_links_are_filenames_only(self) -> None:
         """The first page links JSONL filenames and not their prompts."""
         with tempfile.TemporaryDirectory() as directory:
