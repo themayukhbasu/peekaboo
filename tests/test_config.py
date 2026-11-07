@@ -7,7 +7,7 @@ from contextlib import chdir
 from pathlib import Path
 from unittest.mock import patch
 
-from peekaboo.config import Config, ConfigError, load_config
+from peekaboo.config import Config, ConfigError, default, env_name, load_config
 
 
 class LoadConfigTests(unittest.TestCase):
@@ -25,6 +25,24 @@ class LoadConfigTests(unittest.TestCase):
                 read_file_max_chars=32 * 1024,
             ),
         )
+
+    def test_default_object_exposes_spec_values(self):
+        self.assertEqual(default.model, "llama3.2")
+        self.assertEqual(default.ollama_base_url, "http://127.0.0.1:11434")
+        self.assertEqual(default.http_timeout_seconds, 120)
+        self.assertEqual(default.runs_dir, Path(".peekaboo/runs"))
+        self.assertEqual(default.peek_host, "127.0.0.1")
+        self.assertEqual(default.peek_port, 8765)
+        self.assertEqual(default.read_file_max_chars, 32 * 1024)
+
+    def test_env_name_object_exposes_variable_names(self):
+        self.assertEqual(env_name.model, "PEEKABOO_MODEL")
+        self.assertEqual(env_name.ollama_base_url, "PEEKABOO_OLLAMA_BASE_URL")
+        self.assertEqual(env_name.http_timeout_seconds, "PEEKABOO_HTTP_TIMEOUT")
+        self.assertEqual(env_name.runs_dir, "PEEKABOO_RUNS_DIR")
+        self.assertEqual(env_name.peek_host, "PEEKABOO_PEEK_HOST")
+        self.assertEqual(env_name.peek_port, "PEEKABOO_PEEK_PORT")
+        self.assertEqual(env_name.read_file_max_chars, "PEEKABOO_READ_FILE_MAX_CHARS")
 
     def test_environment_overrides_each_setting(self):
         config = load_config(
