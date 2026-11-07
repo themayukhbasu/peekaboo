@@ -1,4 +1,4 @@
-"""Defaults and environment overrides for load_config."""
+"""Defaults, environment overrides, and dotenv syntax for load_config."""
 
 import os
 import tempfile
@@ -176,3 +176,95 @@ class LoadConfigTests(unittest.TestCase):
             config = load_config({}, dotenv_path=Path(directory) / "missing.env")
         self.assertEqual(config.model, "llama3.2")
         self.assertEqual(config.http_timeout_seconds, 120)
+
+    def test_double_quoted_newline_and_braced_expansion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "TAG=qwen\n"
+                'PEEKABOO_MODEL="${TAG}\\n2.5"\n'
+                "PEEKABOO_READ_FILE_MAX_CHARS=64 # chars\n",
+                encoding="utf-8",
+            )
+            config = load_config({}, dotenv_path=path)
+        self.assertEqual(config.model, "qwen\n2.5")
+        self.assertEqual(config.read_file_max_chars, 64)
+
+    def test_single_quotes_expand_braces_and_keep_a_bare_dollar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "TAG=qwen\n"
+                "PEEKABOO_MODEL='$TAG'\n"
+                "PEEKABOO_RUNS_DIR='dir/${TAG}'\n"
+                "PEEKABOO_PEEK_HOST='local\\nhost'\n",
+                encoding="utf-8",
+            )
+            config = load_config({}, dotenv_path=path)
+        self.assertEqual(config.model, "$TAG")
+        self.assertEqual(config.runs_dir, Path("dir/qwen"))
+        self.assertEqual(config.peek_host, "local\\nhost")
+
+    def test_braced_default_applies_and_a_name_without_equals_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "PEEKABOO_MODEL\n"
+                "PEEKABOO_HTTP_TIMEOUT=${MISSING_TIMEOUT_991:-15}\n",
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("MISSING_TIMEOUT_991", None)
+                config = load_config({}, dotenv_path=path)
+        self.assertEqual(config.model, "llama3.2")
+        self.assertEqual(config.http_timeout_seconds, 15)
+
+    def test_earlier_file_binding_beats_the_process_during_expansion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "PEEKABOO_DOTENV_PROBE=from-file\n"
+                "PEEKABOO_MODEL=${PEEKABOO_DOTENV_PROBE}\n",
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ, {"PEEKABOO_DOTENV_PROBE": "from-process"}, clear=False
+            ):
+                config = load_config({}, dotenv_path=path)
+        self.assertEqual(config.model, "from-file")
+
+    def test_expansion_uses_the_process_environment_not_the_injected_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "PEEKABOO_MODEL=${PEEKABOO_DOTENV_PROBE}\n",
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ, {"PEEKABOO_DOTENV_PROBE": "from-process"}, clear=False
+            ):
+                config = load_config(
+                    {"PEEKABOO_DOTENV_PROBE": "from-inject"},
+                    dotenv_path=path,
+                )
+        self.assertEqual(config.model, "from-process")
+
+    def test_later_file_binding_is_not_visible_during_expansion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "PEEKABOO_MODEL=${PEEKABOO_DOTENV_PROBE}\n"
+                "PEEKABOO_DOTENV_PROBE=from-file\n",
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("PEEKABOO_DOTENV_PROBE", None)
+                config = load_config({}, dotenv_path=path)
+        self.assertEqual(config.model, "llama3.2")
+
+    def test_leading_utf8_bom_does_not_hide_the_first_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_bytes(b"\xef\xbb\xbfPEEKABOO_MODEL=from-dotenv\n")
+            config = load_config({}, dotenv_path=path)
+        self.assertEqual(config.model, "from-dotenv")

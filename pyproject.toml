@@ -3,7 +3,9 @@ name = "peekaboo"
 version = "0.1.0"
 description = "Learning-grade inner harness skeleton."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "python-dotenv>=1.2.4",
+]
 
 [project.scripts]
 peekaboo = "peekaboo.cli:main"

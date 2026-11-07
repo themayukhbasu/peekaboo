@@ -9,12 +9,34 @@ so a blank process value uses the spec default rather than the file.
 Pass ``environ`` to supply that overlay instead of the process, and
 ``dotenv_path`` to read a chosen file. An injected mapping with no
 ``dotenv_path`` does not open a file. A missing file adds nothing.
+Parent directories are not searched.
 
-The file is UTF-8 (a leading BOM is ignored). A line is ``NAME=VALUE``
-or ``export NAME=VALUE``. Blank lines, ``#`` comments, and any other
-line are skipped. Matching single or double quotes must wrap the whole
-value; they are removed, with no escape sequences and no ``$``
-interpolation.
+The file is parsed by python-dotenv's ``dotenv_values`` (UTF-8). A
+leading UTF-8 BOM is ignored. The rules below are that package's, not
+a private parser. File format:
+https://github.com/theskumar/python-dotenv#file-format
+Variable expansion:
+https://github.com/theskumar/python-dotenv#variable-expansion
+Bare ``$NAME`` is not expanded (Getting started):
+https://github.com/theskumar/python-dotenv#getting-started
+
+A line is ``NAME=VALUE`` or ``export NAME=VALUE``. Blank lines and
+``#`` comments are skipped. A name with no ``=`` is ignored. ``NAME=``
+is blank. Spaces around the name, ``=``, and the value are ignored.
+An unquoted value drops a trailing `` #`` comment.
+
+Single or double quotes may wrap a value. Quotes do not turn expansion
+off. Double-quoted values decode the C-style escapes in the file-format
+docs, including newline and tab. Single-quoted values decode only a
+backslash and a single quote, so a backslash followed by n stays as
+written.
+
+``${NAME}`` and ``${NAME:-default}`` expand. Look-up uses an earlier
+binding in the file, then the process environment, then the ``:-``
+default, then an empty string. A later binding in the file is not
+visible. The injected ``environ`` mapping is not an expansion source;
+it only overlays the parsed result. An expanded empty string is blank,
+so the spec default applies.
 
 Defaults follow the numeric defaults in the first-milestones spec:
 
@@ -41,6 +63,8 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+from dotenv import dotenv_values
 
 
 @dataclass(frozen=True)
@@ -155,26 +179,14 @@ def _merged_environment(
 
 
 def _read_dotenv(path: Path) -> dict[str, str]:
-    if not path.is_file():
-        return {}
-    values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        stripped = line.strip()
-        if stripped == "" or stripped.startswith("#"):
-            continue
-        if stripped.startswith("export "):
-            stripped = stripped.removeprefix("export ").strip()
-        key, separator, value = stripped.partition("=")
-        if separator == "" or key.strip() == "":
-            continue
-        values[key.strip()] = _unquote(value.strip())
-    return values
+    """Return string bindings from one file. A missing file adds nothing.
 
-
-def _unquote(value: str) -> str:
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-        return value[1:-1]
-    return value
+    python-dotenv yields ``None`` for a name with no ``=``. Those names
+    are omitted. An empty string is kept so the process overlay can
+    replace a blank file value.
+    """
+    parsed = dotenv_values(path, encoding="utf-8")
+    return {key: value for key, value in parsed.items() if value is not None}
 
 
 def _present(env: Mapping[str, str], name: str) -> str | None:
