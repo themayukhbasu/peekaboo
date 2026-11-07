@@ -19,6 +19,7 @@ _USER = {"role": "user", "content": "why is the sky blue?"}
 
 
 def _listening(base_url: str) -> bool:
+    """Return whether a TCP connection to the Ollama base URL succeeds."""
     parsed = urlparse(base_url)
     host = parsed.hostname
     if host is None:
@@ -37,6 +38,7 @@ class LiveOllamaSmoke(unittest.TestCase):
     """Skip when nothing is listening. Do not treat the reply as instructions."""
 
     def test_one_turn_when_a_daemon_listens(self):
+        """One live turn writes harness fields when a daemon is listening."""
         loaded = load_config()
         if not _listening(loaded.ollama_base_url):
             self.skipTest(

@@ -78,6 +78,7 @@ def run(
 
 
 def _messages(messages: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
+    """Copy each message to string ``role`` and ``content``."""
     if len(messages) == 0:
         raise ValueError("A run needs at least one message.")
     sent: list[dict[str, str]] = []
@@ -100,6 +101,7 @@ def _event(
     raw: bytes | None,
     fallback: str,
 ) -> dict[str, object]:
+    """Build one turn event from the sent messages and the provider reply."""
     parsed: object = None
     if raw is not None:
         try:
@@ -127,6 +129,7 @@ def _event(
 
 
 def _assistant(parsed: object) -> dict[str, str] | None:
+    """Return the assistant role and content, or ``None`` if they are absent."""
     if not isinstance(parsed, dict):
         return None
     message = parsed.get("message")
@@ -140,6 +143,7 @@ def _assistant(parsed: object) -> dict[str, str] | None:
 
 
 def _error_text(status: int | None, parsed: object, fallback: str) -> str:
+    """Pick the error text for a turn that has no assistant message."""
     if isinstance(parsed, dict):
         message = parsed.get("error")
         if isinstance(message, str) and message.strip() != "":

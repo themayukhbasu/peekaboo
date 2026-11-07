@@ -56,6 +56,11 @@ def _chat(
     config: Config | None,
     transport: Transport | None,
 ) -> int:
+    """Run ``peekaboo chat`` and return a process status code.
+
+    Help and a blank message do not call the provider. Otherwise one
+    user message is sent and the run path is printed.
+    """
     if args in (["--help"], ["-h"]):
         sys.stdout.write(_CHAT_HELP)
         return 0

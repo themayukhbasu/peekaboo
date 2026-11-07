@@ -29,26 +29,33 @@ _USER = {"role": "user", "content": "why is the sky blue?"}
 
 
 class _Recording:
+    """Transport that returns one fixed response and records each call."""
+
     def __init__(self, status: int, body: bytes) -> None:
+        """Store the status and body this transport will return."""
         self.status = status
         self.body = body
         self.calls: list[tuple[str, bytes, float]] = []
 
     def __call__(self, url: str, body: bytes, timeout: float) -> tuple[int, bytes]:
+        """Record the call and return the stored status and body."""
         self.calls.append((url, body, timeout))
         return self.status, self.body
 
 
 def _fixture(name: str) -> bytes:
+    """Read one canned provider body from ``tests/fixtures``."""
     return (_FIXTURES / name).read_bytes()
 
 
 def _config(runs_dir: Path) -> Config:
+    """Return settings that write the run under ``runs_dir``."""
     return Config(runs_dir=runs_dir, http_timeout_seconds=7)
 
 
 class RunTests(unittest.TestCase):
     def test_success_writes_one_turn_and_omits_tools(self):
+        """A 200 reply writes one JSONL turn and the request has no tools."""
         with tempfile.TemporaryDirectory() as directory:
             runs = Path(directory)
             transport = _Recording(200, _fixture("ollama_chat_nostream.json"))
@@ -83,6 +90,7 @@ class RunTests(unittest.TestCase):
             )
 
     def test_error_body_is_recorded_without_retry(self):
+        """A provider error body is stored on the turn and is not retried."""
         with tempfile.TemporaryDirectory() as directory:
             transport = _Recording(404, _fixture("ollama_model_not_found.json"))
             path = run(
@@ -100,6 +108,7 @@ class RunTests(unittest.TestCase):
             self.assertNotIn("tools", event)
 
     def test_success_status_without_assistant_names_the_gap(self):
+        """HTTP 200 with no assistant message is recorded as an error turn."""
         with tempfile.TemporaryDirectory() as directory:
             transport = _Recording(200, b'{"done": true}')
             path = run(
@@ -117,9 +126,11 @@ class RunTests(unittest.TestCase):
             )
 
     def test_transport_failure_is_recorded(self):
+        """A transport that never answers is stored as an error turn."""
         with tempfile.TemporaryDirectory() as directory:
 
             def fail(url: str, body: bytes, timeout: float) -> tuple[int, bytes]:
+                """Stand in for a provider that never answers."""
                 raise TransportError("connection refused")
 
             path = run([_USER], [], config=_config(Path(directory)), transport=fail)
@@ -130,6 +141,7 @@ class RunTests(unittest.TestCase):
             self.assertIsNone(event["raw_response"])
 
     def test_tools_are_rejected_before_the_call(self):
+        """A non-empty tools list is rejected before the provider is called."""
         transport = _Recording(200, _fixture("ollama_chat_nostream.json"))
         with self.assertRaises(ValueError):
             run([_USER], [{"name": "read_file"}], config=Config(), transport=transport)
@@ -138,6 +150,7 @@ class RunTests(unittest.TestCase):
 
 class CliTests(unittest.TestCase):
     def test_chat_prints_the_run_path(self):
+        """``peekaboo chat`` prints the run path for one user message."""
         with tempfile.TemporaryDirectory() as directory:
             runs = Path(directory)
             transport = _Recording(200, _fixture("ollama_chat_nostream.json"))
@@ -157,6 +170,7 @@ class CliTests(unittest.TestCase):
             self.assertEqual(len(transport.calls), 1)
 
     def test_missing_message_does_not_call(self):
+        """``peekaboo chat`` with no message exits before calling the provider."""
         transport = _Recording(200, b"{}")
         stderr = StringIO()
         with redirect_stderr(stderr):
@@ -166,13 +180,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(transport.calls, [])
 
     def test_default_discovery_omits_the_opt_in_module(self):
+        """Default discovery does not load the live smoke module."""
         root = Path(__file__).parents[1]
-        script = """
+        script = '''
 import socket
 import unittest
 import dotenv
 
 def boom(*args, **kwargs):
+    """Fail if discovery opens a socket or reads a dotenv file."""
     raise SystemExit("discovery touched the network or a dotenv file")
 
 socket.create_connection = boom
@@ -180,6 +196,7 @@ dotenv.dotenv_values = boom
 suite = unittest.defaultTestLoader.discover("tests")
 
 def ids(item):
+    """Yield each test id in a suite."""
     if isinstance(item, unittest.TestSuite):
         for child in item:
             yield from ids(child)
@@ -187,7 +204,7 @@ def ids(item):
         yield item.id()
 
 print("\\n".join(ids(suite)))
-"""
+'''
         completed = subprocess.run(
             [sys.executable, "-c", script],
             cwd=root,
