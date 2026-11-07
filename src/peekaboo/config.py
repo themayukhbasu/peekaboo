@@ -2,13 +2,19 @@
 
 Callers receive a Config from load_config. That function is the only
 place in the package that reads the process environment or a dotenv
-file. With no mapping passed in, it reads ``.env`` from the working
-directory when that file is present, then overlays the process
-environment. A name set in both places keeps the process value, including
-a blank one, so a blank process value uses the spec default rather than
-the file. A line is ``NAME=VALUE`` or ``export NAME=VALUE``. Blank lines,
-``#`` comments, and any other line are skipped. Matching single or double
-quotes around a value are removed.
+file. With no arguments, it reads ``.env`` in the working directory
+when that file is present, then overlays the process environment. A
+name set in both places keeps the process value, including a blank one,
+so a blank process value uses the spec default rather than the file.
+Pass ``environ`` to supply that overlay instead of the process, and
+``dotenv_path`` to read a chosen file. An injected mapping with no
+``dotenv_path`` does not open a file. A missing file adds nothing.
+
+The file is UTF-8 (a leading BOM is ignored). A line is ``NAME=VALUE``
+or ``export NAME=VALUE``. Blank lines, ``#`` comments, and any other
+line are skipped. Matching single or double quotes must wrap the whole
+value; they are removed, with no escape sequences and no ``$``
+interpolation.
 
 Defaults follow the numeric defaults in the first-milestones spec:
 
@@ -92,17 +98,17 @@ class Config:
     read_file_max_chars: int = default.read_file_max_chars
 
 
-def load_config(environ: Mapping[str, str] | None = None) -> Config:
+def load_config(
+    environ: Mapping[str, str] | None = None,
+    *,
+    dotenv_path: Path | None = None,
+) -> Config:
     """Load settings for this process.
 
-    With no ``environ``, merge ``.env`` in the working directory (if
-    that file is present) and then the process environment. The process
-    value wins when both name the same variable, including when that
-    process value is blank. Pass ``environ`` to read that mapping alone;
-    a ``.env`` file is not opened. Tests use this so they do not change
-    the process environment.
+    ``environ`` replaces the process environment. ``dotenv_path`` chooses
+    the dotenv file. See the module docstring for merge order and syntax.
     """
-    env = _process_environment() if environ is None else environ
+    env = _merged_environment(environ, dotenv_path)
     return Config(
         model=_text(env, env_name.model, default.model),
         ollama_base_url=_base_url(env),
@@ -135,9 +141,16 @@ def load_config(environ: Mapping[str, str] | None = None) -> Config:
     )
 
 
-def _process_environment() -> dict[str, str]:
-    merged = _read_dotenv(Path(".env"))
-    merged.update(os.environ)
+def _merged_environment(
+    environ: Mapping[str, str] | None,
+    dotenv_path: Path | None,
+) -> Mapping[str, str]:
+    process = os.environ if environ is None else environ
+    if dotenv_path is None and environ is not None:
+        return process
+    path = Path(".env") if dotenv_path is None else dotenv_path
+    merged = _read_dotenv(path)
+    merged.update(process)
     return merged
 
 

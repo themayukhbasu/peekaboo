@@ -138,3 +138,23 @@ class LoadConfigTests(unittest.TestCase):
             with chdir(directory):
                 config = load_config({})
         self.assertEqual(config.model, "llama3.2")
+
+    def test_dotenv_path_merges_under_the_injected_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "custom.env"
+            path.write_text(
+                "PEEKABOO_MODEL=from-dotenv\nPEEKABOO_HTTP_TIMEOUT=15\n",
+                encoding="utf-8",
+            )
+            config = load_config(
+                {"PEEKABOO_MODEL": "from-process"},
+                dotenv_path=path,
+            )
+        self.assertEqual(config.model, "from-process")
+        self.assertEqual(config.http_timeout_seconds, 15)
+
+    def test_missing_dotenv_path_contributes_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = load_config({}, dotenv_path=Path(directory) / "missing.env")
+        self.assertEqual(config.model, "llama3.2")
+        self.assertEqual(config.http_timeout_seconds, 120)
