@@ -3,6 +3,8 @@
 The client is ``http.client``. No browser and no Ollama.
 """
 
+from __future__ import annotations
+
 import json
 import tempfile
 import threading

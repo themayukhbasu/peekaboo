@@ -4,6 +4,8 @@
 the model or write run files.
 """
 
+from __future__ import annotations
+
 import html
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
