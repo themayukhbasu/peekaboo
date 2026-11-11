@@ -167,15 +167,8 @@ def _agent_reply(
     counts as an empty string.
     """
     parsed = _decode(raw)
-    if status is None or not 200 <= status < 300 or not isinstance(parsed, dict):
-        return (
-            None,
-            [],
-            _error_text(status, parsed, "The provider call failed."),
-            parsed,
-        )
-    message = parsed.get("message")
-    if not isinstance(message, dict):
+    message = parsed.get("message") if isinstance(parsed, dict) else None
+    if status is None or not 200 <= status < 300 or not isinstance(message, dict):
         return (
             None,
             [],
