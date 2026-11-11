@@ -28,7 +28,8 @@ _FIXTURES = Path(__file__).parent / "fixtures"
 _USER = {"role": "user", "content": "why is the sky blue?"}
 
 
-class _Recording:
+# ``__call__`` is the transport. A second method would not be part of it.
+class _Recording:  # pylint: disable=too-few-public-methods
     """Transport that returns one fixed response and records each call."""
 
     def __init__(self, status: int, body: bytes) -> None:
@@ -54,6 +55,8 @@ def _config(runs_dir: Path) -> Config:
 
 
 class RunTests(unittest.TestCase):
+    """``run`` writes one harness turn for a canned provider response."""
+
     def test_success_writes_one_turn_and_omits_tools(self):
         """A 200 reply writes one JSONL turn and the request has no tools."""
         with tempfile.TemporaryDirectory() as directory:
@@ -149,6 +152,8 @@ class RunTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    """``peekaboo chat`` prints the run path and skips an empty message."""
+
     def test_chat_prints_the_run_path(self):
         """``peekaboo chat`` prints the run path for one user message."""
         with tempfile.TemporaryDirectory() as directory:

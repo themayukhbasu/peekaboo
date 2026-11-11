@@ -93,7 +93,7 @@ def run(
     return write_turn(config.runs_dir, event)
 
 
-def _agent_run(
+def _agent_run(  # pylint: disable=too-many-locals
     messages: Sequence[Mapping[str, str]],
     tools: Sequence[object],
     *,
@@ -267,7 +267,7 @@ def _run_batch(
         else:
             try:
                 content = tool(call.arguments, workspace=workspace, max_chars=max_chars)
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught
                 content = f"{call.name} failed ({error})."
             if not isinstance(content, str):
                 content = f"{call.name} failed (result was not text)."
@@ -293,15 +293,8 @@ def _agent_reply(
     counts as an empty string.
     """
     parsed = _decode(raw)
-    if status is None or not 200 <= status < 300 or not isinstance(parsed, dict):
-        return (
-            None,
-            [],
-            _error_text(status, parsed, "The provider call failed."),
-            parsed,
-        )
-    message = parsed.get("message")
-    if not isinstance(message, dict):
+    message = parsed.get("message") if isinstance(parsed, dict) else None
+    if status is None or not 200 <= status < 300 or not isinstance(message, dict):
         return (
             None,
             [],
@@ -365,7 +358,7 @@ def _one_call(item: object, index: int) -> _Call | None:
     return _Call(name, call_id, function.get("arguments", {}))
 
 
-def _agent_event(
+def _agent_event(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     model: str,
     sent: list[dict[str, object]],
     assistant: dict[str, object] | None,

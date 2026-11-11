@@ -2,6 +2,7 @@
 
 ``peekaboo chat`` sends one user message and prints the run path.
 ``peekaboo agent`` sends one user message with ``read_file``.
+``peekaboo peek`` serves the local run viewer.
 ``--help`` and ``--version`` stay on the top-level command.
 """
 
@@ -10,16 +11,19 @@ from collections.abc import Sequence
 from importlib.metadata import version
 
 from peekaboo.config import Config, ConfigError, load_config
-from peekaboo.tools.read_file import read_file
+from peekaboo.peek import bind
 from peekaboo.run import Transport, run
+from peekaboo.tools.read_file import read_file
 
 _HELP = """\
 usage: peekaboo [--help] [--version]
        peekaboo chat MESSAGE
        peekaboo agent MESSAGE
+       peekaboo peek
 
 Learning harness. `chat` sends one user message and prints the run path.
 `agent` sends one user message, may call read_file, and prints the run path.
+`peek` serves a local page of those runs.
 """
 
 _CHAT_HELP = """\
@@ -36,6 +40,13 @@ Send one user message. The model may call read_file in the working directory.
 Prints the run file path.
 """
 
+_PEEK_HELP = """\
+usage: peekaboo peek
+
+Serve a local page of run files. The default address is
+http://127.0.0.1:8765. Stops on Ctrl-C. Does not open a browser.
+"""
+
 
 def main(
     argv: Sequence[str] | None = None,
@@ -46,7 +57,8 @@ def main(
     """Run the command. Returns a process status code.
 
     ``config`` and ``transport`` replace the defaults for tests.
-    Omit them to load settings and call Ollama.
+    Omit them to load settings and, for chat and agent, call Ollama.
+    ``peek`` does not use ``transport``.
     """
     args = list(sys.argv[1:] if argv is None else argv)
     if args in ([], ["--help"], ["-h"]):
@@ -71,6 +83,8 @@ def main(
             config=config,
             transport=transport,
         )
+    if args[:1] == ["peek"]:
+        return _peek(args[1:], config=config)
     sys.stderr.write(_HELP)
     return 2
 
@@ -112,4 +126,32 @@ def _command(
         sys.stderr.write(f"{error}\n")
         return 1
     sys.stdout.write(f"{path}\n")
+    return 0
+
+
+def _peek(args: list[str], *, config: Config | None) -> int:
+    """Serve the peek until Ctrl-C and return a process status code.
+
+    Help does not bind a socket. Otherwise the process listens until
+    it is interrupted.
+    """
+    if args in (["--help"], ["-h"]):
+        sys.stdout.write(_PEEK_HELP)
+        return 0
+    if args:
+        sys.stderr.write(_PEEK_HELP)
+        return 2
+    if config is None:
+        try:
+            config = load_config()
+        except ConfigError as error:
+            sys.stderr.write(f"{error}\n")
+            return 2
+    try:
+        bind(config).serve_forever()
+    except KeyboardInterrupt:
+        return 0
+    except OSError as error:
+        sys.stderr.write(f"{error}\n")
+        return 1
     return 0

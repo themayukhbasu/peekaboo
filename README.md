@@ -50,7 +50,7 @@ After the early cuts, later capability is still fog; a research survey of possib
 
 ## Status
 
-Early days. Learning project, not for production. `peekaboo chat MESSAGE` sends one user message to local Ollama, writes one JSONL run under `.peekaboo/runs/`, and prints that path. `peekaboo agent MESSAGE` uses that same run file and may call `read_file` on files in the working directory. The peek comes in a later milestone.
+Early days. Learning project, not for production. `peekaboo chat MESSAGE` sends one user message to local Ollama, writes one JSONL run under `.peekaboo/runs/`, and prints that path. `peekaboo peek` serves that directory at <http://127.0.0.1:8765>: filename links, then each turn’s harness fields, with the raw provider body collapsed. It binds loopback, does not open a browser, and stops on Ctrl-C. `peekaboo agent MESSAGE` uses that same run file and may call `read_file` on files in the working directory.
 
 ## Development
 
@@ -65,6 +65,7 @@ uv run ruff check
 uv run ruff format --check
 uv run peekaboo --help
 uv run peekaboo chat "why is the sky blue?"
+uv run peekaboo peek
 uv run peekaboo agent "What does README.md say?"
 ```
 

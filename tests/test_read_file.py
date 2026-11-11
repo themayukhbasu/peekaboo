@@ -13,6 +13,8 @@ from peekaboo.tools.read_file import read_file
 
 
 class ReadFileTests(unittest.TestCase):
+    """Paths inside the workspace, and the character cap from config."""
+
     def test_path_and_truncation(self):
         """Missing, escaped, and long paths are strings. The cap comes from config."""
         loaded = load_config({env_name.read_file_max_chars: "4"})
