@@ -157,8 +157,8 @@ def _present(env: Mapping[str, str], name: str) -> str | None:
     return text
 
 
-def _text(env: Mapping[str, str], name: str, default: str) -> str:
-    return _present(env, name) or default
+def _text(env: Mapping[str, str], name: str, fallback: str) -> str:
+    return _present(env, name) or fallback
 
 
 def _base_url(env: Mapping[str, str]) -> str:
@@ -173,10 +173,11 @@ def _base_url(env: Mapping[str, str]) -> str:
     return value.rstrip("/")
 
 
-def _whole_number(
+# Bounds and the error wording stay with the name and the fallback.
+def _whole_number(  # pylint: disable=too-many-arguments
     env: Mapping[str, str],
     name: str,
-    default: int,
+    fallback: int,
     *,
     minimum: int,
     maximum: int | None,
@@ -184,7 +185,7 @@ def _whole_number(
 ) -> int:
     raw = _present(env, name)
     if raw is None:
-        return default
+        return fallback
     try:
         value = int(raw, 10)
     except ValueError:
