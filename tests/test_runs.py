@@ -10,6 +10,8 @@ _STAMP = r"^\d{8}T\d{12}Z\.jsonl$"
 
 
 class RunLogTests(unittest.TestCase):
+    """Later appends stay in the first file. ``write_turn`` opens a new one."""
+
     def test_later_appends_stay_in_the_first_file(self):
         """The first append creates one stamped file. Later lines join it."""
         with tempfile.TemporaryDirectory() as directory:

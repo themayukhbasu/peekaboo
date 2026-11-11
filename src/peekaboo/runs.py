@@ -13,7 +13,8 @@ from pathlib import Path
 _STAMP = "%Y%m%dT%H%M%S%fZ"
 
 
-class RunLog:
+# Append is the whole interface. A second method would not be part of it.
+class RunLog:  # pylint: disable=too-few-public-methods
     """One JSONL file. Append once per model call."""
 
     def __init__(self, runs_dir: Path) -> None:
