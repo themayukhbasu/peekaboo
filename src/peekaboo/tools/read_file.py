@@ -22,7 +22,8 @@ _PARAMETERS: dict[str, object] = {
 }
 
 
-class ReadFile:
+# ``__call__`` is the tool. A second method would not be part of it.
+class ReadFile:  # pylint: disable=too-few-public-methods
     """Callable tool. The loop passes the model's arguments object."""
 
     name = "read_file"
@@ -38,29 +39,42 @@ class ReadFile:
         path = _path(arguments)
         if path is None:
             return "read_file needs a string path."
-        try:
-            root = workspace.resolve()
-            candidate = (root / path).resolve()
-        except OSError:
-            return f"Could not read {path!r}."
-        try:
-            candidate.relative_to(root)
-        except ValueError:
-            return f"{path!r} is outside the workspace."
-        if not candidate.is_file():
-            if candidate.exists():
-                return f"{path!r} is not a file."
-            return f"{path!r} was not found."
-        try:
-            with candidate.open(encoding="utf-8") as handle:
-                text = handle.read(max_chars + 1)
-        except UnicodeDecodeError:
-            return f"{path!r} is not UTF-8 text."
-        except OSError:
-            return f"Could not read {path!r}."
-        if len(text) > max_chars:
-            return text[:max_chars] + "\n[truncated]"
-        return text
+        located = _candidate(workspace, path)
+        if isinstance(located, str):
+            return located
+        return _text(located, path, max_chars)
+
+
+def _candidate(workspace: Path, path: str) -> Path | str:
+    """Return the file inside ``workspace``, or a short error string."""
+    try:
+        root = workspace.resolve()
+        candidate = (root / path).resolve()
+    except OSError:
+        return f"Could not read {path!r}."
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return f"{path!r} is outside the workspace."
+    if candidate.is_file():
+        return candidate
+    if candidate.exists():
+        return f"{path!r} is not a file."
+    return f"{path!r} was not found."
+
+
+def _text(candidate: Path, path: str, max_chars: int) -> str:
+    """Return file text, cut at ``max_chars`` decoded characters."""
+    try:
+        with candidate.open(encoding="utf-8") as handle:
+            text = handle.read(max_chars + 1)
+    except UnicodeDecodeError:
+        return f"{path!r} is not UTF-8 text."
+    except OSError:
+        return f"Could not read {path!r}."
+    if len(text) > max_chars:
+        return text[:max_chars] + "\n[truncated]"
+    return text
 
 
 def _path(arguments: object) -> str | None:
