@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from importlib.metadata import version
 
 from peekaboo.config import Config, ConfigError, load_config
-from peekaboo.read_file import read_file
+from peekaboo.tools.read_file import read_file
 from peekaboo.run import Transport, run
 
 _HELP = """\

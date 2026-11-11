@@ -11,7 +11,7 @@ from pathlib import Path
 
 from peekaboo.cli import main
 from peekaboo.config import Config, load_config
-from peekaboo.read_file import read_file
+from peekaboo.tools.read_file import read_file
 from peekaboo.run import (
     _agent_reply,
     _checked_tools,
