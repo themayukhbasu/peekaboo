@@ -141,7 +141,7 @@ class RunTests(unittest.TestCase):
             self.assertIsNone(event["raw_response"])
 
     def test_tools_are_rejected_before_the_call(self):
-        """A non-empty tools list is rejected before the provider is called."""
+        """A plain dict is not a tool and is rejected before the provider call."""
         transport = _Recording(200, _fixture("ollama_chat_nostream.json"))
         with self.assertRaises(ValueError):
             run([_USER], [{"name": "read_file"}], config=Config(), transport=transport)
