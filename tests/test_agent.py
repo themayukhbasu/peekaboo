@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from peekaboo.config import Config
-from peekaboo.read_file import read_file
+from peekaboo.tools.read_file import read_file
 from peekaboo.run import (
     _agent_reply,
     _checked_tools,

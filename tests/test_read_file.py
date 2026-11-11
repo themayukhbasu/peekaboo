@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from peekaboo.config import env_name, load_config
-from peekaboo.read_file import read_file
+from peekaboo.tools.read_file import read_file
 
 
 class ReadFileTests(unittest.TestCase):
