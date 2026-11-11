@@ -28,6 +28,8 @@ _CALL = (
 
 
 class ToolWireTests(unittest.TestCase):
+    """Schema envelope, wire projection, and tools that are rejected."""
+
     def test_schema_envelope_and_rejected_tools(self):
         """``read_file`` is one function. A dict or a duplicate name is not."""
         self.assertEqual(_checked_tools([read_file]), [read_file])
@@ -62,6 +64,8 @@ class ToolWireTests(unittest.TestCase):
 
 
 class ReplyParseTests(unittest.TestCase):
+    """Stop replies still yield calls. Provider errors stay text."""
+
     def test_stop_still_parses_calls_and_errors_stay_text(self):
         """Tool calls are read when ``done_reason`` is stop. Errors keep text."""
         assistant, calls, failure, parsed = _agent_reply(200, _CALL)
