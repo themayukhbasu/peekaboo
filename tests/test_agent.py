@@ -90,7 +90,7 @@ _TOOL = (
 )
 
 
-class _Script:
+class _Script:  # pylint: disable=too-few-public-methods
     """Transport that returns canned bodies in order and records each call."""
 
     def __init__(self, responses: list[tuple[int, bytes]]) -> None:
@@ -106,8 +106,7 @@ class _Script:
 
 def _events(path: Path) -> list[dict[str, object]]:
     """Return each JSON object in a run file, in file order."""
-    text = path.read_text(encoding="utf-8")
-    return [json.loads(line) for line in text.splitlines()]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
 @contextmanager
@@ -122,6 +121,8 @@ def _cwd(path: Path) -> Iterator[None]:
 
 
 class AgentRunTests(unittest.TestCase):
+    """One ``read_file`` call, then a plain reply, stops the loop."""
+
     def test_tool_call_then_stop(self):
         """One ``read_file`` call is sent back, then a plain reply stops."""
         plain = (_FIXTURES / "ollama_chat_nostream.json").read_bytes()
