@@ -1,23 +1,28 @@
-"""One-shot model run.
+"""One run of the chat loop or the agent loop.
 
-``run`` posts the messages it is given and writes one JSONL turn under
-``config.runs_dir``. Chat passes one user message and an empty tools
-list. A provider failure is recorded on that turn and is not retried.
+``run`` posts the messages it is given and writes one JSONL file under
+``config.runs_dir``. An empty ``tools`` list is chat: one user message,
+no system message, and no tools on the request. A non-empty list is the
+agent loop. A provider failure is recorded on that turn and is not retried.
 """
 
 import json
-import urllib.error
-import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import NamedTuple
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from peekaboo.config import Config
-from peekaboo.runs import write_turn
+from peekaboo.runs import RunLog, write_turn
 
 Transport = Callable[[str, bytes, float], tuple[int, bytes]]
 
-_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+_OPENER = urllib_request.build_opener(urllib_request.ProxyHandler({}))
+_MAX_TURNS = 8
+_SYSTEM = (
+    "You may call read_file to read a file in the workspace. Pass one path argument."
+)
 
 
 class TransportError(OSError):
@@ -38,7 +43,7 @@ def urllib_transport(url: str, body: bytes, timeout: float) -> tuple[int, bytes]
     A non-2xx status is still a response. ``TransportError`` means
     nothing came back. Proxy variables are ignored; pass the URL in.
     """
-    request = urllib.request.Request(
+    request = urllib_request.Request(
         url,
         data=body,
         method="POST",
@@ -47,12 +52,12 @@ def urllib_transport(url: str, body: bytes, timeout: float) -> tuple[int, bytes]
     try:
         with _OPENER.open(request, timeout=timeout) as response:
             return response.status, response.read()
-    except urllib.error.HTTPError as error:
+    except urllib_error.HTTPError as error:
         try:
             return error.code, error.read()
         finally:
             error.close()
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except (urllib_error.URLError, TimeoutError, OSError) as error:
         reason = getattr(error, "reason", error)
         raise TransportError(f"Could not reach the provider ({reason}).") from error
 
@@ -64,13 +69,15 @@ def run(
     config: Config,
     transport: Transport | None = None,
 ) -> Path:
-    """Send one non-streaming chat request and return the run path.
+    """Send the messages and return the run path.
 
-    ``tools`` must be empty. The default ``transport`` is stdlib
-    ``urllib``. Provider failure is written on the turn, not raised.
+    An empty ``tools`` list is one chat turn. Anything else is the
+    agent loop: one fixed system message, then up to eight model
+    calls. The default ``transport`` is stdlib ``urllib``. Provider
+    failure is written on the turn, not raised.
     """
     if len(tools) != 0:
-        raise ValueError("This run accepts no tools.")
+        return _agent_run(messages, tools, config=config, transport=transport)
     sent = _messages(messages)
     post = urllib_transport if transport is None else transport
     url = f"{config.ollama_base_url.rstrip('/')}/api/chat"
@@ -84,6 +91,85 @@ def run(
     else:
         event = _event(config.model, sent, status, raw, "The provider call failed.")
     return write_turn(config.runs_dir, event)
+
+
+def _agent_run(
+    messages: Sequence[Mapping[str, str]],
+    tools: Sequence[object],
+    *,
+    config: Config,
+    transport: Transport | None,
+) -> Path:
+    """Run tool calls until the model stops, the cap, or a provider error.
+
+    The workspace is the process working directory. Tool calls on the
+    eighth model call are recorded and not run.
+    """
+    offered = _checked_tools(tools)
+    history: list[dict[str, object]] = [
+        {"role": "system", "content": _SYSTEM},
+        *_messages(messages),
+    ]
+    schemas = [_schema(tool) for tool in offered]
+    by_name = {tool.name: tool for tool in offered}
+    log = RunLog(config.runs_dir)
+    workspace = Path.cwd()
+    post = urllib_transport if transport is None else transport
+    url = f"{config.ollama_base_url.rstrip('/')}/api/chat"
+    timeout = float(config.http_timeout_seconds)
+    for turn in range(1, _MAX_TURNS + 1):
+        posted = list(history)
+        body = json.dumps(
+            {
+                "model": config.model,
+                "messages": [_wire_message(item) for item in posted],
+                "tools": [_wire_tool(schema) for schema in schemas],
+                "stream": False,
+            }
+        ).encode("utf-8")
+        try:
+            status, raw = post(url, body, timeout)
+        except TransportError as error:
+            log.append(
+                _agent_event(
+                    config.model, posted, None, "error", str(error), None, schemas
+                )
+            )
+            return log.path
+        assistant, calls, failure, parsed = _agent_reply(status, raw)
+        if failure is not None:
+            log.append(
+                _agent_event(
+                    config.model, posted, None, "error", failure, parsed, schemas
+                )
+            )
+            return log.path
+        if calls and turn < _MAX_TURNS:
+            reason = "tool_calls"
+        elif calls:
+            reason = "max_turns"
+        else:
+            reason = "stop"
+        if calls:
+            assistant = {
+                **assistant,
+                "tool_calls": [_harness_call(call) for call in calls],
+            }
+        log.append(
+            _agent_event(config.model, posted, assistant, reason, None, parsed, schemas)
+        )
+        if reason != "tool_calls":
+            return log.path
+        history.append(assistant)
+        history.extend(
+            _run_batch(
+                calls,
+                by_name,
+                workspace=workspace,
+                max_chars=config.read_file_max_chars,
+            )
+        )
+    raise OSError("The agent loop ended without writing a turn.")
 
 
 def _checked_tools(tools: Sequence[object]) -> list[object]:
@@ -154,6 +240,46 @@ def _wire_message(message: Mapping[str, object]) -> dict[str, object]:
         "content": message.get("content", ""),
         "tool_calls": wire_calls,
     }
+
+
+def _harness_call(call: _Call) -> dict[str, object]:
+    """Return the event shape of one tool call."""
+    return {
+        "tool_name": call.name,
+        "tool_call_id": call.call_id,
+        "arguments": call.arguments,
+    }
+
+
+def _run_batch(
+    calls: Sequence[_Call],
+    by_name: Mapping[str, object],
+    *,
+    workspace: Path,
+    max_chars: int,
+) -> list[dict[str, str]]:
+    """Run ``calls`` in order. A failure is an error string; the rest run."""
+    results = []
+    for call in calls:
+        tool = by_name.get(call.name)
+        if tool is None:
+            content = f"Unknown tool {call.name}."
+        else:
+            try:
+                content = tool(call.arguments, workspace=workspace, max_chars=max_chars)
+            except Exception as error:
+                content = f"{call.name} failed ({error})."
+            if not isinstance(content, str):
+                content = f"{call.name} failed (result was not text)."
+        results.append(
+            {
+                "role": "tool",
+                "content": content,
+                "tool_name": call.name,
+                "tool_call_id": call.call_id,
+            }
+        )
+    return results
 
 
 def _agent_reply(
@@ -237,6 +363,27 @@ def _one_call(item: object, index: int) -> _Call | None:
     if not isinstance(call_id, str) or call_id == "":
         call_id = f"call_{index}"
     return _Call(name, call_id, function.get("arguments", {}))
+
+
+def _agent_event(
+    model: str,
+    sent: list[dict[str, object]],
+    assistant: dict[str, object] | None,
+    stop_reason: str,
+    error: str | None,
+    raw: object,
+    schemas: list[dict[str, object]],
+) -> dict[str, object]:
+    """Build one agent turn, including the tool schema that was sent."""
+    return {
+        "model": model,
+        "messages_sent": sent,
+        "assistant": assistant,
+        "stop_reason": stop_reason,
+        "error": error,
+        "raw_response": raw,
+        "tools": schemas,
+    }
 
 
 def _messages(messages: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
