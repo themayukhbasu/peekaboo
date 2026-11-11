@@ -290,6 +290,8 @@ class AgentRunTests(unittest.TestCase):
 
 
 class AgentCliTests(unittest.TestCase):
+    """``peekaboo agent`` prints a run path and skips a blank message."""
+
     def test_agent_prints_the_run_path(self):
         """``peekaboo agent`` prints the run path and exits."""
         with tempfile.TemporaryDirectory() as directory:
