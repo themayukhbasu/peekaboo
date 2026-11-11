@@ -1,0 +1,21 @@
+{
+  "model": "llama3.2",
+  "message": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "call_a1b2c3d4",
+        "function": {
+          "index": 0,
+          "name": "read_file",
+          "arguments": {
+            "path": "a.txt"
+          }
+        }
+      }
+    ]
+  },
+  "done": true,
+  "done_reason": "stop"
+}
