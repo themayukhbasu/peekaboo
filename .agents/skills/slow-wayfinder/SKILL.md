@@ -55,9 +55,9 @@ After each settled answer, update a repo file (default `docs/wayfinder/session-c
 
 ## PR size
 
-Shorter PRs are preferred so a human can review them. Guideline: about **~250 significant lines of code** per PR, with a modest buffer. Significant lines means real logic and tests, not generated noise, lockfile churn, or pure formatting.
+Shorter PRs are preferred so a human can review them. Target about **~250 significant lines** per PR. Up to ~300 is allowed only when splitting would cut through a seam; the PR states the reason. Count everything except generated and lock files. Tests, fixtures, and docs count.
 
-When charting, grilling milestones, or later when `/to-tickets` will slice the work: prefer cuts that fit that budget. If a ticket or milestone looks like it needs a much larger PR, say so and get the human's explicit agreement before locking it in.
+When charting, grilling milestones, or later when `/to-tickets` will slice the work: prefer cuts that fit that budget. Bigger work is a stack of slices, each within the size rule, cut along real seams. A stack of up to 4 slices needs no permission. More than 4 needs Mayukh's OK first. The daily ticket limit, the 3-ticket cap, and the ~1000-line ceiling are in `AGENTS.md`.
 
 ## After the map
 

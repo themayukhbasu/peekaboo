@@ -71,7 +71,7 @@ The cap counts model calls, not tool calls. No token budget. No duplicate-call d
 
 - No harness code yet.
 - Glossary drafts: inner harness, outer harness, chat loop, agent loop, peek, turn event, provider seam.
-- Bot rules stand: about 250 significant lines per PR, at most 3 open bot PRs, at most one new scheduled PR a day, bots never merge. HITL wayfinder tickets need the owner live.
+- Bot and pull-request limits live in `AGENTS.md`. HITL wayfinder tickets need the owner live.
 - GitHub issue list has not been checked yet. Check `gh repo view` is `themayukhbasu/peekaboo` before the first `gh issue create`.
 
 ## Settled this session
