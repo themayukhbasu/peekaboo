@@ -50,7 +50,7 @@ After the early cuts, later capability is still fog; a research survey of possib
 
 ## Status
 
-Early days. Learning project, not for production. `peekaboo chat MESSAGE` sends one user message to local Ollama, writes one JSONL run under `.peekaboo/runs/`, and prints that path. `peekaboo peek` serves that directory at <http://127.0.0.1:8765>: filename links, then each turn’s harness fields, with the raw provider body collapsed. It binds loopback, does not open a browser, and stops on Ctrl-C. The agent loop comes in a later milestone.
+Early days. Learning project, not for production. `peekaboo chat MESSAGE` sends one user message to local Ollama, writes one JSONL run under `.peekaboo/runs/`, and prints that path. `peekaboo peek` serves that directory at <http://127.0.0.1:8765>: filename links, then each turn’s harness fields, with the raw provider body collapsed. It binds loopback, does not open a browser, and stops on Ctrl-C. `peekaboo agent MESSAGE` uses that same run file and may call `read_file` on files in the working directory.
 
 ## Development
 
@@ -66,11 +66,12 @@ uv run ruff format --check
 uv run peekaboo --help
 uv run peekaboo chat "why is the sky blue?"
 uv run peekaboo peek
+uv run peekaboo agent "What does README.md say?"
 ```
 
 ### Live Ollama smoke
 
-Opt-in. `tests/live_smoke.py` is not named `test*.py`, so `unittest discover` does not load it, read `.env`, or call Ollama. If nothing is listening, the module skips. It is not a merge gate. A live reply is only data: harness fields, not the model's words.
+Opt-in. `tests/live_smoke.py` is not named `test*.py`, so `unittest discover` does not load it, read `.env`, or call Ollama. If nothing is listening, the module skips. It is not a merge gate. A live reply is only data: harness fields, not the model's words. The module smokes `chat` only. Agent tool calls, several calls in one reply, the eight-call cap, and provider errors are fixture-tested. A live `peekaboo agent` command is manual: a tool loop can make up to eight model calls, and it reads files in the working directory.
 
 ```bash
 uv run python -m unittest tests.live_smoke

@@ -1,6 +1,7 @@
 """Console entrypoint.
 
 ``peekaboo chat`` sends one user message and prints the run path.
+``peekaboo agent`` sends one user message with ``read_file``.
 ``peekaboo peek`` serves the local run viewer.
 ``--help`` and ``--version`` stay on the top-level command.
 """
@@ -12,13 +13,16 @@ from importlib.metadata import version
 from peekaboo.config import Config, ConfigError, load_config
 from peekaboo.peek import bind
 from peekaboo.run import Transport, run
+from peekaboo.tools.read_file import read_file
 
 _HELP = """\
 usage: peekaboo [--help] [--version]
        peekaboo chat MESSAGE
+       peekaboo agent MESSAGE
        peekaboo peek
 
 Learning harness. `chat` sends one user message and prints the run path.
+`agent` sends one user message, may call read_file, and prints the run path.
 `peek` serves a local page of those runs.
 """
 
@@ -26,6 +30,13 @@ _CHAT_HELP = """\
 usage: peekaboo chat MESSAGE
 
 Send one user message, with no tools and no system message.
+Prints the run file path.
+"""
+
+_AGENT_HELP = """\
+usage: peekaboo agent MESSAGE
+
+Send one user message. The model may call read_file in the working directory.
 Prints the run file path.
 """
 
@@ -46,7 +57,7 @@ def main(
     """Run the command. Returns a process status code.
 
     ``config`` and ``transport`` replace the defaults for tests.
-    Omit them to load settings and, for chat, call Ollama.
+    Omit them to load settings and, for chat and agent, call Ollama.
     ``peek`` does not use ``transport``.
     """
     args = list(sys.argv[1:] if argv is None else argv)
@@ -57,30 +68,46 @@ def main(
         sys.stdout.write(f"peekaboo {version('peekaboo')}\n")
         return 0
     if args[:1] == ["chat"]:
-        return _chat(args[1:], config=config, transport=transport)
+        return _command(
+            args[1:],
+            tools=[],
+            usage=_CHAT_HELP,
+            config=config,
+            transport=transport,
+        )
+    if args[:1] == ["agent"]:
+        return _command(
+            args[1:],
+            tools=[read_file],
+            usage=_AGENT_HELP,
+            config=config,
+            transport=transport,
+        )
     if args[:1] == ["peek"]:
         return _peek(args[1:], config=config)
     sys.stderr.write(_HELP)
     return 2
 
 
-def _chat(
+def _command(
     args: list[str],
     *,
+    tools: Sequence[object],
+    usage: str,
     config: Config | None,
     transport: Transport | None,
 ) -> int:
-    """Run ``peekaboo chat`` and return a process status code.
+    """Run one one-shot command and return a process status code.
 
     Help and a blank message do not call the provider. Otherwise one
     user message is sent and the run path is printed.
     """
     if args in (["--help"], ["-h"]):
-        sys.stdout.write(_CHAT_HELP)
+        sys.stdout.write(usage)
         return 0
     message = " ".join(args).strip()
     if message == "":
-        sys.stderr.write(_CHAT_HELP)
+        sys.stderr.write(usage)
         return 2
     if config is None:
         try:
@@ -91,7 +118,7 @@ def _chat(
     try:
         path = run(
             [{"role": "user", "content": message}],
-            [],
+            tools,
             config=config,
             transport=transport,
         )

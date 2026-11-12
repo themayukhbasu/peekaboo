@@ -12,9 +12,11 @@ from peekaboo.cli import main
 _HELP = """\
 usage: peekaboo [--help] [--version]
        peekaboo chat MESSAGE
+       peekaboo agent MESSAGE
        peekaboo peek
 
 Learning harness. `chat` sends one user message and prints the run path.
+`agent` sends one user message, may call read_file, and prints the run path.
 `peek` serves a local page of those runs.
 """
 
