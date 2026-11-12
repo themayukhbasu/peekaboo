@@ -104,6 +104,18 @@ class _Script:  # pylint: disable=too-few-public-methods
         return self._responses.pop(0)
 
 
+def _fixture(name: str) -> bytes:
+    """Read one canned provider body from ``tests/fixtures``."""
+    return (_FIXTURES / name).read_bytes()
+
+
+def _with_id(body: bytes, call_id: str) -> bytes:
+    """Return ``body`` with the first tool call's ``id`` set to ``call_id``."""
+    payload = json.loads(body)
+    payload["message"]["tool_calls"][0]["id"] = call_id
+    return json.dumps(payload).encode("utf-8")
+
+
 def _events(path: Path) -> list[dict[str, object]]:
     """Return each JSON object in a run file, in file order."""
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
@@ -142,3 +154,134 @@ class AgentRunTests(unittest.TestCase):
             self.assertEqual(events[0]["stop_reason"], "tool_calls")
             self.assertEqual(events[1]["stop_reason"], "stop")
             self.assertEqual(events[0]["tools"][0]["name"], "read_file")
+
+    def test_one_fixture_call_records_the_wire(self):
+        """The canned tool call is posted back, then a plain reply stops."""
+        plain = _fixture("ollama_chat_nostream.json")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_text("hello\n", encoding="utf-8")
+            config = Config(runs_dir=root / "runs", http_timeout_seconds=7)
+            transport = _Script(
+                [(200, _fixture("ollama_one_tool_call.json")), (200, plain)]
+            )
+            with _cwd(root):
+                path = run([_USER], [read_file], config=config, transport=transport)
+            self.assertEqual(len(transport.calls), 2)
+            first = json.loads(transport.calls[0][1])
+            self.assertIs(first["stream"], False)
+            self.assertIn("read_file", first["messages"][0]["content"])
+            self.assertEqual(first["messages"][1], _USER)
+            tool = first["tools"][0]
+            self.assertEqual(tool["type"], "function")
+            self.assertEqual(tool["function"]["parameters"]["required"], ["path"])
+            second = json.loads(transport.calls[1][1])
+            follow = second["messages"]
+            self.assertEqual(follow[2]["tool_calls"][0]["function"]["index"], 0)
+            self.assertEqual(
+                follow[2]["tool_calls"][0]["function"]["arguments"], {"path": "a.txt"}
+            )
+            self.assertEqual(
+                follow[3],
+                {
+                    "role": "tool",
+                    "content": "hello\n",
+                    "tool_name": "read_file",
+                    "tool_call_id": "call_a1b2c3d4",
+                },
+            )
+            events = _events(path)
+            self.assertEqual(events[0]["raw_response"]["done_reason"], "stop")
+            self.assertNotIn("done_reason", events[0])
+            self.assertNotIn("type", events[0]["tools"][0])
+            assistant = events[0]["assistant"]
+            self.assertEqual(assistant["content"], "")
+            self.assertEqual(assistant["tool_calls"][0]["tool_name"], "read_file")
+            self.assertNotIn("tool_calls", events[0]["messages_sent"][-1])
+            self.assertRegex(path.name, r"^\d{8}T\d{12}Z\.jsonl$")
+
+    def test_several_calls_continue_after_a_miss(self):
+        """Calls run in array order. A missing path does not skip the next."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_text("from-a", encoding="utf-8")
+            config = Config(runs_dir=root / "runs", read_file_max_chars=100)
+            transport = _Script(
+                [
+                    (200, _fixture("ollama_two_tool_calls.json")),
+                    (200, _fixture("ollama_chat_nostream.json")),
+                ]
+            )
+            with _cwd(root):
+                path = run([_USER], [read_file], config=config, transport=transport)
+            sent = json.loads(transport.calls[1][1])["messages"]
+            self.assertEqual(sent[3]["tool_call_id"], "call_a1b2c3d4")
+            self.assertIn("not found", sent[3]["content"])
+            self.assertEqual(sent[4]["tool_call_id"], "call_e5f6g7h8")
+            self.assertEqual(sent[4]["content"], "from-a")
+            self.assertEqual(sent[2]["tool_calls"][0]["function"]["index"], 0)
+            self.assertEqual(sent[2]["tool_calls"][1]["function"]["index"], 1)
+            events = _events(path)
+            self.assertEqual(len(events), 2)
+            self.assertEqual(len(events[0]["assistant"]["tool_calls"]), 2)
+
+    def test_last_allowed_call_does_not_run_tools(self):
+        """Eight tool-call replies stop before the eighth call is run."""
+        body = _fixture("ollama_one_tool_call.json")
+        responses = [(200, _with_id(body, f"call_{index}")) for index in range(8)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_text("hello\n", encoding="utf-8")
+            config = Config(runs_dir=root / "runs")
+            transport = _Script(responses)
+            with _cwd(root):
+                path = run([_USER], [read_file], config=config, transport=transport)
+            self.assertEqual(len(transport.calls), 8)
+            events = _events(path)
+            self.assertEqual(len(events), 8)
+            self.assertEqual(events[-1]["stop_reason"], "max_turns")
+            self.assertEqual(
+                events[-1]["assistant"]["tool_calls"][0]["tool_call_id"], "call_7"
+            )
+            sent_on_last = [
+                message["tool_call_id"]
+                for message in events[-1]["messages_sent"]
+                if message.get("role") == "tool"
+            ]
+            self.assertEqual(sent_on_last, [f"call_{index}" for index in range(7)])
+            for event in events:
+                for message in event["messages_sent"]:
+                    self.assertNotEqual(message.get("tool_call_id"), "call_7")
+
+    def test_eighth_reply_without_tools_is_stop(self):
+        """A plain reply on the eighth model call uses ``stop``, not the cap."""
+        body = _fixture("ollama_one_tool_call.json")
+        responses = [(200, _with_id(body, f"call_{index}")) for index in range(7)]
+        responses.append((200, _fixture("ollama_chat_nostream.json")))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_text("hello\n", encoding="utf-8")
+            config = Config(runs_dir=root / "runs")
+            transport = _Script(responses)
+            with _cwd(root):
+                path = run([_USER], [read_file], config=config, transport=transport)
+            events = _events(path)
+            self.assertEqual(len(transport.calls), 8)
+            self.assertEqual(events[-1]["stop_reason"], "stop")
+            self.assertNotIn("tool_calls", events[-1]["assistant"])
+
+    def test_provider_error_stops_without_retry(self):
+        """A failed provider call sets ``error`` and does not call again."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = Config(runs_dir=root / "runs")
+            transport = _Script([(404, _fixture("ollama_model_not_found.json"))])
+            with _cwd(root):
+                path = run([_USER], [read_file], config=config, transport=transport)
+            self.assertEqual(len(transport.calls), 1)
+            event = _events(path)[0]
+            self.assertEqual(event["stop_reason"], "error")
+            self.assertEqual(event["error"], "model 'llama3.2' not found")
+            self.assertIsNone(event["assistant"])
+            self.assertEqual(event["tools"][0]["name"], "read_file")
+            self.assertEqual(event["messages_sent"][0]["role"], "system")
