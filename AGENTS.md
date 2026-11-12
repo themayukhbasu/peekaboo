@@ -24,21 +24,34 @@ These match the merged config loader ([#24](https://github.com/themayukhbasu/pee
 
 ## Bot team
 
-- Three bots work here: a PM (lead; assigns tickets), a builder (code PRs via cloud agents) and a researcher (research tickets and tutoring). The owner, Mayukh, reviews and merges every PR. Bots never merge, approve, close PRs or push to main.
+- Four bots work here. Peekaboo: PM leads and assigns tickets. Peekaboo: Builder opens code PRs via cloud agents. Peekaboo: Researcher takes research tickets only. Peekaboo: Reviewer reviews builder PRs. The owner, Mayukh, reviews and merges every PR. Bots never merge, approve, close PRs, or push to main.
+- Tutoring sits outside this repo, with Mayukh's Learn: Tutor bot and the socratic stack in `themayukhbasu/skills/socratic`. Learn: Scout keeps the Notion "To Learn" list. Tutoring notes stay with Learn: Tutor. Leave `docs/learning/` unused.
 - Work is tracked as GitHub Issues. Wayfinder maps and decision tickets use `wayfinder:*` labels. The builder claims `ready-for-agent`. The researcher claims `ready-for-researcher` (a `wayfinder:research` ticket carries that too; other research the owner hands out carries it alone). Bots never resolve HITL tickets (grilling, prototype, HITL task); those need the owner live.
 - Runs can stop mid-way (for example at a usage limit) and nothing replays them, so GitHub is the only state. Before starting new work, each bot resumes its own unfinished work first: an existing branch or PR for the issue, unresolved review comments, or an existing `research/<slug>` branch. The PM re-sends stalled tickets (assigned, open, no PR or findings after a day, or a draft PR without a description) as "resume #N" before assigning anything new, and never double-assigns.
+- When the Reviewer catches a real flaw in a builder PR, it opens a drill seed in this repo: a GitHub issue labelled `drill-seed`, with the snippet, the flaw, and its category from the socratic drill taxonomy. Drill seeds live in peekaboo.
+- The Reviewer sends Learn: Scout the names of concepts in a PR that look new to Mayukh, plus the PR link, so Scout can add or update To Learn entries (the PR is the source, priority P1). Scout dedupes.
+- When a bot finds a gap in a skill it runs (the socratic stack, or a grok-bot project skill), it opens a small pull request on `themayukhbasu/skills` that describes the gap and the fix, for Mayukh's review. Bots never merge.
 
 ## Pull requests
 
-- About 250 significant lines of diff per PR.
-- Hard cap: at most 3 open bot PRs at any time, code and docs together. At the cap, open nothing new; ask the owner to merge or close first. This applies even when the owner asks for more.
-- Scheduled work opens at most one new PR per day. When the owner asks directly (on demand), the one-per-day limit does not apply, but the 3-open cap still does.
+- Target about 250 significant lines per PR. Up to about 300 is allowed only when splitting would cut through a seam; the PR states the reason. Count everything except generated and lock files. Tests, fixtures, and docs count.
+- Bigger work ships as a stack. Each slice stays within the size rule, is cut along a real seam, and builds and tests on its own. Only the top PR closes the issue. A stack of up to 4 slices needs no permission. More than 4 needs Mayukh's OK first (the PM asks him, or re-slices the ticket). Open every slice of a stack together.
+- Scheduled work starts at most one ticket a day. A whole stack counts as one ticket. An on-demand ask from Mayukh skips the daily limit.
+- At most 3 tickets in review at once. Group open bot PRs by ticket; a stack counts as one. Docs PRs count. A new ticket also waits while total open bot-PR lines, counted the same way, are about 1000 or more. Slices of a ticket already started still finish. At either cap, ask Mayukh to merge or close before a new ticket, including when he asks for more on demand.
 - Every PR description is written with the `/pr` skill and backs each claim with evidence (real command output, sample data, test results). No "should work".
 - Before opening a PR, run the project's `verify-*` skill if one exists, otherwise the tests and linters that exist.
 - Review comments are fixed on the same branch, with a reply under each comment saying what changed.
-- Research findings go on throwaway `research/<slug>` branches with no PR. Tutoring notes go in `docs/learning/` by PR and count toward the limits above.
+- Research findings go on throwaway `research/<slug>` branches with no PR.
 - PR descriptions are concise. Use diagrams (Mermaid in Markdown) wherever they make the change easier to follow, e.g. data flow, sequence or state.
 - When a PR implements a tricky concept (often one the researcher looked into), cite the sources: link the primary sources and any research branch or ticket it builds on.
+
+Review flow:
+
+1. The Builder finishes a PR, or a whole stack, verifies it, and hands it to Peekaboo: Reviewer.
+2. The Reviewer reviews each slice and the stack as a whole. It checks description quality, including Read this first; the size rule; every acceptance criterion in the issue or spec, one by one; `AGENTS.md` and `CODING_STANDARDS.md` through the `code-review` skill; naming; that the tests and evidence are real; and CI. It picks the riskiest function itself and checks that function is on the must-read list. It runs the pstack skills `interrogate` (an adversarial pass), `blast-radius`, `no-comments`, `unslop` (on the description), `principle-prove-it-works`, `principle-test-behavior-not-implementation`, and `principle-subtract-before-you-add`. It names at least one concrete risk, or writes "none found, checked X, Y, Z".
+3. The Reviewer posts one GitHub review per round with event `COMMENT` and a verdict line: "Reviewer: pass" or "Reviewer: changes needed". Bots never approve, merge, or close. On "changes needed", the Builder fixes the same branch and hands it back. At most 2 rounds. After that the PM flags the PR to Mayukh as needs-Mayukh.
+4. Mayukh hears about a PR only after "Reviewer: pass". The PM sends the review alert or the daily summary. Mayukh reviews and merges.
+5. Approve gate: when a PR lists must-read functions, Mayukh runs the socratic approve gate on it with Learn: Tutor before merging (what the change does, how it could fail, how he would verify it). The PM alert says so.
 
 ## Build and test
 
@@ -58,4 +71,5 @@ Builders changing the package use these skills:
 
 - `codebase-design` for deep modules and where a seam goes.
 - `tdd` for tests at the public interface.
-- `code-review` for standards in `CODING_STANDARDS.md` and the originating issue.
+
+Peekaboo: Reviewer uses `code-review` for standards in `AGENTS.md` and `CODING_STANDARDS.md`, and for the originating issue. The review flow names the other skills it runs.

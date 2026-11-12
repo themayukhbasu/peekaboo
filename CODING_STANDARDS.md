@@ -25,9 +25,15 @@ Use the vocabulary in the `codebase-design` skill: module, interface, seam, adap
 
 If a function exists, call it. Do not paste the same behaviour again at the call site. Delete a helper that nothing calls.
 
+## Naming
+
+A name says what the thing does: `build_chat_request`. Avoid `_message`, `_xyz`, `_do`, `helper`, and a single letter. A trivial loop index may be a single letter. A leading underscore only marks a module-private helper, and the rest of the name still says what it does.
+
+Every public function and class has a short docstring that says what it does and why it exists. Prefer clarity over cleverness. Spell an abbreviation out on first use.
+
 ## Pull requests
 
-Keep a pull request near 250 significant lines. Count logic, tests, and user-facing docs. Split a larger change.
+Target about 250 significant lines. Up to about 300 is allowed only when splitting would cut through a seam; say why in the PR. Count everything except generated and lock files. Tests, fixtures, and docs count.
 
 ## Language
 

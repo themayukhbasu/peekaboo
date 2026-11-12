@@ -18,11 +18,13 @@ Wayfinder maps and their child tickets carry `wayfinder:*` labels. They never ca
 
 ## Bot queues
 
-Two labels, two bots. The PM assigns within a queue and does not put one bot's work on the other label.
+Two labels, two queues. The PM assigns within a queue and does not put one bot's work on the other label. Peekaboo: Reviewer has no queue label.
 
 | Label | Bot | What belongs on it |
 | ----- | --- | ------------------ |
 | `ready-for-agent` | Builder | A sliced build ticket from `/to-tickets`. Code PR. |
 | `ready-for-researcher` | Researcher | AFK research the owner wants done. A `wayfinder:research` ticket carries this as well as its wayfinder label. Any other research issue the owner hands out carries this label and no wayfinder label. Findings go on a throwaway `research/<slug>` branch with no PR. |
 
-`wayfinder:grilling`, `wayfinder:prototype`, and a HITL `wayfinder:task` never get either queue label. Tutoring notes are a docs PR when the owner asks for them. They are not implied by `ready-for-researcher`.
+`wayfinder:grilling`, `wayfinder:prototype`, and a HITL `wayfinder:task` never get either queue label. Tutoring is Learn: Tutor, outside this repo.
+
+`drill-seed` records a real flaw Peekaboo: Reviewer caught in a builder PR. The issue holds the snippet, the flaw, and its category from the socratic drill taxonomy. It sits outside the two queues. See `AGENTS.md`.

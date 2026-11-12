@@ -12,6 +12,14 @@ metadata:
 Use this template for writing the PR body:
 
 ```markdown
+## Read this first
+
+**Must-read:** <1-3 linked functions or classes, in reading order, each with one line on why. Or "None: mechanical change">
+
+**Concepts:** <each concept, one plain line, and a source link>
+
+**Stack:** <place (n/N), neighbours, and the merge order. Omit when this PR is not in a stack>
+
 ## Summary
 
 <diagram, diff-sketch, or tree>
@@ -35,6 +43,14 @@ Use this template for writing the PR body:
 ## Sections
 
 Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
+
+### Read this first
+
+This section is the top of every PR body.
+
+- **Must-read functions.** One to three functions or classes that need Mayukh's eyes: core logic, an invariant, or a new seam. Link each one, add one line on why, and put them in a suggested reading order. When truly none, write "None: mechanical change".
+- **Concepts in this PR.** Each concept gets one plain line and a source link.
+- **Stack.** For a stack, give this slice's place (`n/N`), its neighbours, and the merge order. Omit this when the PR is not in a stack.
 
 ### Summary
 
