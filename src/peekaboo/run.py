@@ -32,6 +32,32 @@ class _Call(NamedTuple):
     arguments: object
 
 
+class _Reply(NamedTuple):
+    """One parsed provider reply. ``error`` is set when it cannot be sent back."""
+
+    assistant: dict[str, str] | None
+    calls: tuple[_Call, ...]
+    error: str | None
+    body: object
+
+
+# ``issue`` is the whole interface. A second method would not mint ids.
+class _FallbackIds:  # pylint: disable=too-few-public-methods
+    """Issues ``call_<n>`` ids that stay unique for one run."""
+
+    def __init__(self) -> None:
+        self._n = 0
+
+    def issue(self) -> str:
+        """Return the next fallback id."""
+        call_id = f"call_{self._n}"
+        self._n += 1
+        return call_id
+
+
+_UNREADABLE = "The provider returned tool calls that could not be read."
+
+
 def urllib_transport(url: str, body: bytes, timeout: float) -> tuple[int, bytes]:
     """POST ``body`` and return the status and response bytes.
 
@@ -126,29 +152,23 @@ def _wire_tool(schema: Mapping[str, object]) -> dict[str, object]:
 def _wire_message(message: Mapping[str, object]) -> dict[str, object]:
     """Project one harness message onto an Ollama chat message.
 
-    Assistant tool calls become ``id`` plus ``function`` with an
-    arguments object. ``done_reason`` is not read.
+    An assistant tool call keeps the id and arguments it was given.
+    ``done_reason`` is not read.
     """
     calls = message.get("tool_calls")
     if not isinstance(calls, list):
         return dict(message)
-    wire_calls = []
-    for index, call in enumerate(calls):
-        if not isinstance(call, Mapping):
-            continue
-        arguments = call.get("arguments")
-        if not isinstance(arguments, dict):
-            arguments = {}
-        wire_calls.append(
-            {
-                "id": call.get("tool_call_id", ""),
-                "function": {
-                    "index": index,
-                    "name": call.get("tool_name", ""),
-                    "arguments": arguments,
-                },
-            }
-        )
+    wire_calls = [
+        {
+            "id": call["tool_call_id"],
+            "function": {
+                "index": index,
+                "name": call["tool_name"],
+                "arguments": call["arguments"],
+            },
+        }
+        for index, call in enumerate(calls)
+    ]
     return {
         "role": message.get("role", "assistant"),
         "content": message.get("content", ""),
@@ -156,80 +176,72 @@ def _wire_message(message: Mapping[str, object]) -> dict[str, object]:
     }
 
 
-def _agent_reply(
+def _parse_agent_reply(
     status: int | None,
     raw: bytes | None,
-) -> tuple[dict[str, str] | None, list[_Call], str | None, object]:
-    """Parse one agent reply into an assistant, calls, an error, and the body.
+    fallbacks: _FallbackIds,
+) -> _Reply:
+    """Parse one agent reply into assistant text, calls, and an error.
 
-    A non-empty ``tool_calls`` list is a tool turn even when ``content``
-    is empty and ``done_reason`` is ``stop``. A missing ``content``
-    counts as an empty string.
+    Accepts a 2xx message with string role and content, including when
+    ``done_reason`` is ``stop``. Rejects a non-mapping call or non-object
+    arguments. ``fallbacks`` keeps a missing id unique across one run.
     """
     parsed = _decode(raw)
     message = parsed.get("message") if isinstance(parsed, dict) else None
     if status is None or not 200 <= status < 300 or not isinstance(message, dict):
-        return (
-            None,
-            [],
-            _error_text(status, parsed, "The provider call failed."),
-            parsed,
-        )
-    if "content" in message:
-        content = message["content"]
-        if not isinstance(content, str):
-            return (
-                None,
-                [],
-                _error_text(status, parsed, "The provider call failed."),
-                parsed,
-            )
-    else:
-        content = ""
+        return _rejected_reply(status, parsed)
+    content = message.get("content", "")
     role = message.get("role", "assistant")
-    if not isinstance(role, str):
-        return (
-            None,
-            [],
-            _error_text(status, parsed, "The provider call failed."),
-            parsed,
-        )
     raw_calls = message.get("tool_calls", [])
+    if not isinstance(content, str) or not isinstance(role, str):
+        return _rejected_reply(status, parsed)
     if not isinstance(raw_calls, list):
-        return (
-            None,
-            [],
-            "The provider returned tool calls that could not be read.",
-            parsed,
-        )
+        return _rejected_reply(status, parsed, _UNREADABLE)
     calls: list[_Call] = []
-    for index, item in enumerate(raw_calls):
-        call = _one_call(item, index)
+    for item in raw_calls:
+        call = _parse_tool_call(item, fallbacks)
         if call is None:
-            return (
-                None,
-                [],
-                "The provider returned tool calls that could not be read.",
-                parsed,
-            )
+            return _rejected_reply(status, parsed, _UNREADABLE)
         calls.append(call)
-    return {"role": role, "content": content}, calls, None, parsed
+    return _Reply({"role": role, "content": content}, tuple(calls), None, parsed)
 
 
-def _one_call(item: object, index: int) -> _Call | None:
-    """Return one call, or ``None`` when the object has no function name."""
-    if not isinstance(item, dict):
+def _rejected_reply(
+    status: int | None,
+    parsed: object,
+    error: str | None = None,
+) -> _Reply:
+    """Return a reply that has no calls and an error string."""
+    if error is None:
+        error = _error_text(status, parsed, "The provider call failed.")
+    return _Reply(None, (), error, parsed)
+
+
+def _parse_tool_call(item: object, fallbacks: _FallbackIds) -> _Call | None:
+    """Return one call, or ``None`` when it cannot be sent back.
+
+    Needs a mapping, a function name, and object ``arguments`` (missing
+    means ``{}``). A blank ``id`` takes the next value from ``fallbacks``.
+    """
+    if not isinstance(item, Mapping):
         return None
     function = item.get("function")
-    if not isinstance(function, dict):
+    if not isinstance(function, Mapping):
         return None
     name = function.get("name")
     if not isinstance(name, str) or name == "":
         return None
+    if "arguments" not in function:
+        arguments: object = {}
+    else:
+        arguments = function["arguments"]
+        if not isinstance(arguments, dict):
+            return None
     call_id = item.get("id")
     if not isinstance(call_id, str) or call_id == "":
-        call_id = f"call_{index}"
-    return _Call(name, call_id, function.get("arguments", {}))
+        call_id = fallbacks.issue()
+    return _Call(name, call_id, arguments)
 
 
 def _messages(messages: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
