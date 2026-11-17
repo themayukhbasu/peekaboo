@@ -1,7 +1,11 @@
-"""Tool schemas, Ollama wire shape, and provider tool-call replies."""
+"""Tool wire format and the agent loop through ``run``."""
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
+from peekaboo.config import Config
 from peekaboo.tools.read_file import read_file
 from peekaboo.run import (
     _FallbackIds,
@@ -11,6 +15,7 @@ from peekaboo.run import (
     _schema,
     _wire_message,
     _wire_tool,
+    run,
 )
 
 _UNREADABLE = "The provider returned tool calls that could not be read."
@@ -108,3 +113,60 @@ class ReplyParseTests(unittest.TestCase):
             self.assertIsNone(reply.assistant)
             self.assertEqual(reply.calls, ())
             self.assertEqual(reply.error, _UNREADABLE)
+
+
+_FIXTURES = Path(__file__).parent / "fixtures"
+_USER = {"role": "user", "content": "Read the file."}
+_TOOL = (
+    b'{"done_reason":"stop","message":{"role":"assistant","content":"",'
+    b'"tool_calls":[{"id":"call_a1b2c3d4","function":{"name":"read_file",'
+    b'"arguments":{"path":"a.txt"}}}]}}'
+)
+
+
+class _Script:  # pylint: disable=too-few-public-methods
+    """Transport that returns canned bodies in order and records each call."""
+
+    def __init__(self, responses: list[tuple[int, bytes]]) -> None:
+        self._responses = list(responses)
+        self.calls: list[tuple[str, bytes, float]] = []
+
+    def __call__(self, url: str, body: bytes, timeout: float) -> tuple[int, bytes]:
+        self.calls.append((url, body, timeout))
+        if not self._responses:
+            raise AssertionError("the model was called after the script ended")
+        return self._responses.pop(0)
+
+
+def _events(path: Path) -> list[dict[str, object]]:
+    """Return each JSON object in a run file, in file order."""
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+class AgentRunTests(unittest.TestCase):
+    """One ``read_file`` call, then a plain reply, stops the loop."""
+
+    def test_tool_call_then_stop(self):
+        """One ``read_file`` call is sent back, then a plain reply stops."""
+        plain = (_FIXTURES / "ollama_chat_nostream.json").read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_text("hello\n", encoding="utf-8")
+            config = Config(runs_dir=root / "runs")
+            transport = _Script([(200, _TOOL), (200, plain)])
+            path = run(
+                [_USER],
+                [read_file],
+                config=config,
+                transport=transport,
+                workspace=root,
+            )
+            self.assertEqual(len(transport.calls), 2)
+            sent = json.loads(transport.calls[1][1])["messages"]
+            self.assertEqual(sent[0]["role"], "system")
+            self.assertEqual(sent[3]["content"], "hello\n")
+            self.assertEqual(sent[3]["tool_call_id"], "call_a1b2c3d4")
+            events = _events(path)
+            self.assertEqual(events[0]["stop_reason"], "tool_calls")
+            self.assertEqual(events[1]["stop_reason"], "stop")
+            self.assertEqual(events[0]["tools"][0]["name"], "read_file")
