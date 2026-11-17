@@ -68,7 +68,7 @@ def main(
         sys.stdout.write(f"peekaboo {version('peekaboo')}\n")
         return 0
     if args[:1] == ["chat"]:
-        return _command(
+        return _run_one_shot(
             args[1:],
             tools=[],
             usage=_CHAT_HELP,
@@ -76,7 +76,7 @@ def main(
             transport=transport,
         )
     if args[:1] == ["agent"]:
-        return _command(
+        return _run_one_shot(
             args[1:],
             tools=[read_file],
             usage=_AGENT_HELP,
@@ -89,7 +89,7 @@ def main(
     return 2
 
 
-def _command(
+def _run_one_shot(
     args: list[str],
     *,
     tools: Sequence[object],
@@ -97,10 +97,9 @@ def _command(
     config: Config | None,
     transport: Transport | None,
 ) -> int:
-    """Run one one-shot command and return a process status code.
+    """Send one message, print the run path, and return a status code.
 
-    Help and a blank message do not call the provider. Otherwise one
-    user message is sent and the run path is printed.
+    Help and a blank message do not call the provider.
     """
     if args in (["--help"], ["-h"]):
         sys.stdout.write(usage)
