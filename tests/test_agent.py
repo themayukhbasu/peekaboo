@@ -1,12 +1,16 @@
-"""Tool wire format and the agent loop through ``run``."""
+"""Tool wire format, the agent loop, and ``peekaboo agent``."""
 
 import json
+import os
 import tempfile
 import unittest
-from contextlib import contextmanager
+from collections.abc import Iterator
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 
-from peekaboo.config import Config
+from peekaboo.cli import main
+from peekaboo.config import Config, load_config
 from peekaboo.tools.read_file import read_file
 from peekaboo.run import TransportError, run
 
@@ -255,4 +259,53 @@ class AgentRunTests(unittest.TestCase):
                 workspace=Path("."),
             )
         self.assertIn("Duplicate tool name", str(raised.exception))
+        self.assertEqual(transport.calls, [])
+
+
+@contextmanager
+def _cwd(path: Path) -> Iterator[None]:
+    """Use ``path`` as the process working directory for one block."""
+    previous = Path.cwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
+
+
+class AgentCliTests(unittest.TestCase):
+    """``peekaboo agent`` prints a run path and skips a blank message."""
+
+    def test_agent_prints_the_run_path(self):
+        """``peekaboo agent`` prints the run path and exits."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_text("hello\n", encoding="utf-8")
+            config = Config(runs_dir=root / "runs", http_timeout_seconds=7)
+            transport = _Script(
+                [
+                    (200, _fixture("ollama_one_tool_call.json")),
+                    (200, _fixture("ollama_chat_nostream.json")),
+                ]
+            )
+            stdout = StringIO()
+            with _cwd(root), redirect_stdout(stdout):
+                status = main(
+                    ["agent", "Read", "the", "file."],
+                    config=config,
+                    transport=transport,
+                )
+            self.assertEqual(status, 0)
+            path = Path(stdout.getvalue().strip())
+            self.assertEqual(path.parent, root / "runs")
+            self.assertEqual(_events(path)[-1]["stop_reason"], "stop")
+
+    def test_blank_agent_does_not_call(self):
+        """``peekaboo agent`` with no message exits before the provider."""
+        transport = _Script([])
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            status = main(["agent"], config=load_config({}), transport=transport)
+        self.assertEqual(status, 2)
+        self.assertIn("peekaboo agent MESSAGE", stderr.getvalue())
         self.assertEqual(transport.calls, [])
