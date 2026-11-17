@@ -10,6 +10,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+from typing import NamedTuple
 
 from peekaboo.config import Config
 from peekaboo.runs import write_turn
@@ -21,6 +22,40 @@ _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 class TransportError(OSError):
     """No HTTP response arrived. A status and a body are not this error."""
+
+
+class _Call(NamedTuple):
+    """One tool call taken from a provider message."""
+
+    name: str
+    call_id: str
+    arguments: object
+
+
+class _Reply(NamedTuple):
+    """One parsed provider reply. ``error`` is set when it cannot be sent back."""
+
+    assistant: dict[str, str] | None
+    calls: tuple[_Call, ...]
+    error: str | None
+    body: object
+
+
+# ``issue`` is the whole interface. A second method would not mint ids.
+class _FallbackIds:  # pylint: disable=too-few-public-methods
+    """Issues ``call_<n>`` ids that stay unique for one run."""
+
+    def __init__(self) -> None:
+        self._n = 0
+
+    def issue(self) -> str:
+        """Return the next fallback id."""
+        call_id = f"call_{self._n}"
+        self._n += 1
+        return call_id
+
+
+_UNREADABLE = "The provider returned tool calls that could not be read."
 
 
 def urllib_transport(url: str, body: bytes, timeout: float) -> tuple[int, bytes]:
@@ -77,6 +112,138 @@ def run(
     return write_turn(config.runs_dir, event)
 
 
+def _checked_tools(tools: Sequence[object]) -> list[object]:
+    """Return ``tools`` when each one has a schema and can be called."""
+    seen: dict[str, object] = {}
+    for tool in tools:
+        name = getattr(tool, "name", None)
+        description = getattr(tool, "description", None)
+        parameters = getattr(tool, "parameters", None)
+        if (
+            not callable(tool)
+            or not isinstance(name, str)
+            or name == ""
+            or not isinstance(description, str)
+            or not isinstance(parameters, Mapping)
+        ):
+            raise ValueError(
+                "Each tool needs a name, description, parameters, and call."
+            )
+        if name in seen:
+            raise ValueError(f"Duplicate tool name {name}.")
+        seen[name] = tool
+    return list(seen.values())
+
+
+def _schema(tool: object) -> dict[str, object]:
+    """Copy the harness schema fields off one tool."""
+    return {
+        "name": tool.name,
+        "description": tool.description,
+        "parameters": tool.parameters,
+    }
+
+
+def _wire_tool(schema: Mapping[str, object]) -> dict[str, object]:
+    """Wrap one schema in Ollama's ``type`` / ``function`` envelope."""
+    return {"type": "function", "function": dict(schema)}
+
+
+def _wire_message(message: Mapping[str, object]) -> dict[str, object]:
+    """Project one harness message onto an Ollama chat message.
+
+    An assistant tool call keeps the id and arguments it was given.
+    ``done_reason`` is not read.
+    """
+    calls = message.get("tool_calls")
+    if not isinstance(calls, list):
+        return dict(message)
+    wire_calls = [
+        {
+            "id": call["tool_call_id"],
+            "function": {
+                "index": index,
+                "name": call["tool_name"],
+                "arguments": call["arguments"],
+            },
+        }
+        for index, call in enumerate(calls)
+    ]
+    return {
+        "role": message.get("role", "assistant"),
+        "content": message.get("content", ""),
+        "tool_calls": wire_calls,
+    }
+
+
+def _parse_agent_reply(
+    status: int | None,
+    raw: bytes | None,
+    fallbacks: _FallbackIds,
+) -> _Reply:
+    """Parse one agent reply into assistant text, calls, and an error.
+
+    Accepts a 2xx message with string role and content, including when
+    ``done_reason`` is ``stop``. Rejects a non-mapping call or non-object
+    arguments. ``fallbacks`` keeps a missing id unique across one run.
+    """
+    parsed = _decode(raw)
+    message = parsed.get("message") if isinstance(parsed, dict) else None
+    if status is None or not 200 <= status < 300 or not isinstance(message, dict):
+        return _rejected_reply(status, parsed)
+    content = message.get("content", "")
+    role = message.get("role", "assistant")
+    raw_calls = message.get("tool_calls", [])
+    if not isinstance(content, str) or not isinstance(role, str):
+        return _rejected_reply(status, parsed)
+    if not isinstance(raw_calls, list):
+        return _rejected_reply(status, parsed, _UNREADABLE)
+    calls: list[_Call] = []
+    for item in raw_calls:
+        call = _parse_tool_call(item, fallbacks)
+        if call is None:
+            return _rejected_reply(status, parsed, _UNREADABLE)
+        calls.append(call)
+    return _Reply({"role": role, "content": content}, tuple(calls), None, parsed)
+
+
+def _rejected_reply(
+    status: int | None,
+    parsed: object,
+    error: str | None = None,
+) -> _Reply:
+    """Return a reply that has no calls and an error string."""
+    if error is None:
+        error = _error_text(status, parsed, "The provider call failed.")
+    return _Reply(None, (), error, parsed)
+
+
+def _parse_tool_call(item: object, fallbacks: _FallbackIds) -> _Call | None:
+    """Return one call, or ``None`` when it cannot be sent back.
+
+    Needs a mapping, a function name, and object ``arguments`` (missing
+    means ``{}``). A blank ``id`` takes the next value from ``fallbacks``.
+    """
+    if not isinstance(item, Mapping):
+        return None
+    function = item.get("function")
+    if not isinstance(function, Mapping):
+        return None
+    name = function.get("name")
+    if not isinstance(name, str) or name == "":
+        return None
+    if "arguments" not in function:
+        arguments: object = {}
+    else:
+        arguments = function["arguments"]
+        if not isinstance(arguments, dict):
+            return None
+    call_id = item.get("id")
+    if not isinstance(call_id, str) or call_id == "":
+        call_id = fallbacks.issue()
+    return _Call(name, call_id, arguments)
+
+
 def _messages(messages: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
     """Copy each message to string ``role`` and ``content``."""
     if len(messages) == 0:
@@ -101,13 +268,8 @@ def _event(
     raw: bytes | None,
     fallback: str,
 ) -> dict[str, object]:
-    """Build one turn event from the sent messages and the provider reply."""
-    parsed: object = None
-    if raw is not None:
-        try:
-            parsed = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            parsed = raw.decode("utf-8", errors="replace")
+    """Build one chat turn from the sent messages and the provider reply."""
+    parsed = _decode(raw)
     if status is not None and 200 <= status < 300:
         assistant = _assistant(parsed)
     else:
@@ -126,6 +288,16 @@ def _event(
         "error": error,
         "raw_response": parsed,
     }
+
+
+def _decode(raw: bytes | None) -> object:
+    """Decode a provider body. ``None`` means nothing arrived."""
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return raw.decode("utf-8", errors="replace")
 
 
 def _assistant(parsed: object) -> dict[str, str] | None:
