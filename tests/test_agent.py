@@ -1,11 +1,8 @@
 """Tool wire format and the agent loop through ``run``."""
 
 import json
-import os
 import tempfile
 import unittest
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 
 from peekaboo.config import Config
@@ -121,17 +118,6 @@ def _events(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
-@contextmanager
-def _cwd(path: Path) -> Iterator[None]:
-    """Use ``path`` as the process working directory for one block."""
-    previous = Path.cwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(previous)
-
-
 class AgentRunTests(unittest.TestCase):
     """One ``read_file`` call, then a plain reply, stops the loop."""
 
@@ -143,8 +129,13 @@ class AgentRunTests(unittest.TestCase):
             (root / "a.txt").write_text("hello\n", encoding="utf-8")
             config = Config(runs_dir=root / "runs")
             transport = _Script([(200, _TOOL), (200, plain)])
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = run(
+                [_USER],
+                [read_file],
+                config=config,
+                transport=transport,
+                workspace=root,
+            )
             self.assertEqual(len(transport.calls), 2)
             sent = json.loads(transport.calls[1][1])["messages"]
             self.assertEqual(sent[0]["role"], "system")
