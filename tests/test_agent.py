@@ -13,6 +13,7 @@ from peekaboo.cli import main
 from peekaboo.config import Config, load_config
 from peekaboo.tools.read_file import read_file
 from peekaboo.run import (
+    TransportError,
     _FallbackIds,
     _checked_tools,
     _parse_agent_reply,
@@ -160,15 +161,30 @@ def _events(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
-@contextmanager
-def _cwd(path: Path) -> Iterator[None]:
-    """Use ``path`` as the process working directory for one block."""
-    previous = Path.cwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(previous)
+def _run_agent(
+    root: Path, transport: object, config: Config, tools: list[object] | None = None
+) -> Path:
+    offered = [read_file] if tools is None else tools
+    return run([_USER], offered, config=config, transport=transport, workspace=root)
+
+
+def _named_tool(name: str, result: object):
+    def call(_arguments: object, **_rest: object) -> object:
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    call.name, call.description = name, "Test tool."
+    call.parameters = {"type": "object", "properties": {}}
+    return call
+
+
+_BAD_BATCH = (
+    b'{"done_reason":"stop","message":{"role":"assistant","content":"",'
+    b'"tool_calls":[{"id":"call_raise","function":{"name":"boom","arguments":{}}},'
+    b'{"id":"call_miss","function":{"name":"nope","arguments":{}}},'
+    b'{"id":"call_odd","function":{"name":"odd","arguments":{}}}]}}'
+)
 
 
 class AgentRunTests(unittest.TestCase):
@@ -182,8 +198,13 @@ class AgentRunTests(unittest.TestCase):
             (root / "a.txt").write_text("hello\n", encoding="utf-8")
             config = Config(runs_dir=root / "runs")
             transport = _Script([(200, _TOOL), (200, plain)])
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = run(
+                [_USER],
+                [read_file],
+                config=config,
+                transport=transport,
+                workspace=root,
+            )
             self.assertEqual(len(transport.calls), 2)
             sent = json.loads(transport.calls[1][1])["messages"]
             self.assertEqual(sent[0]["role"], "system")
@@ -204,8 +225,7 @@ class AgentRunTests(unittest.TestCase):
             transport = _Script(
                 [(200, _fixture("ollama_one_tool_call.json")), (200, plain)]
             )
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = _run_agent(root, transport, config)
             self.assertEqual(len(transport.calls), 2)
             first = json.loads(transport.calls[0][1])
             self.assertIs(first["stream"], False)
@@ -251,8 +271,7 @@ class AgentRunTests(unittest.TestCase):
                     (200, _fixture("ollama_chat_nostream.json")),
                 ]
             )
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = _run_agent(root, transport, config)
             sent = json.loads(transport.calls[1][1])["messages"]
             self.assertEqual(sent[3]["tool_call_id"], "call_a1b2c3d4")
             self.assertIn("not found", sent[3]["content"])
@@ -273,8 +292,7 @@ class AgentRunTests(unittest.TestCase):
             (root / "a.txt").write_text("hello\n", encoding="utf-8")
             config = Config(runs_dir=root / "runs")
             transport = _Script(responses)
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = _run_agent(root, transport, config)
             self.assertEqual(len(transport.calls), 8)
             events = _events(path)
             self.assertEqual(len(events), 8)
@@ -302,8 +320,7 @@ class AgentRunTests(unittest.TestCase):
             (root / "a.txt").write_text("hello\n", encoding="utf-8")
             config = Config(runs_dir=root / "runs")
             transport = _Script(responses)
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = _run_agent(root, transport, config)
             events = _events(path)
             self.assertEqual(len(transport.calls), 8)
             self.assertEqual(events[-1]["stop_reason"], "stop")
@@ -315,8 +332,7 @@ class AgentRunTests(unittest.TestCase):
             root = Path(directory)
             config = Config(runs_dir=root / "runs")
             transport = _Script([(404, _fixture("ollama_model_not_found.json"))])
-            with _cwd(root):
-                path = run([_USER], [read_file], config=config, transport=transport)
+            path = _run_agent(root, transport, config)
             self.assertEqual(len(transport.calls), 1)
             event = _events(path)[0]
             self.assertEqual(event["stop_reason"], "error")
@@ -324,6 +340,50 @@ class AgentRunTests(unittest.TestCase):
             self.assertIsNone(event["assistant"])
             self.assertEqual(event["tools"][0]["name"], "read_file")
             self.assertEqual(event["messages_sent"][0]["role"], "system")
+
+    def test_batch_records_a_raise_an_unknown_name_and_a_non_text_result(self):
+        """A raise, an unknown tool, and a non-text result stay in the batch."""
+        tools = [_named_tool("boom", RuntimeError("kaput")), _named_tool("odd", 5)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            transport = _Script(
+                [(200, _BAD_BATCH), (200, _fixture("ollama_chat_nostream.json"))]
+            )
+            path = _run_agent(root, transport, Config(runs_dir=root / "runs"), tools)
+            sent = json.loads(transport.calls[1][1])["messages"]
+            self.assertEqual(sent[3]["content"], "boom failed (kaput).")
+            self.assertEqual(sent[4]["content"], "Unknown tool nope.")
+            self.assertEqual(sent[5]["content"], "odd failed (result was not text).")
+            self.assertEqual(len(transport.calls), 2)
+            self.assertEqual(_events(path)[-1]["stop_reason"], "stop")
+
+    def test_transport_error_is_one_error_turn(self):
+        """A transport error stops the agent loop and is not retried."""
+        seen: list[str] = []
+
+        def fail(_url: str, _body: bytes, _timeout: float) -> tuple[int, bytes]:
+            seen.append(_url)
+            raise TransportError("connection refused")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = _run_agent(root, fail, Config(runs_dir=root / "runs"))
+            event = _events(path)[0]
+            self.assertEqual(len(seen), 1)
+            self.assertEqual(event["stop_reason"], "error")
+            self.assertEqual(event["error"], "connection refused")
+            self.assertIsNone(event["assistant"])
+
+
+@contextmanager
+def _cwd(path: Path) -> Iterator[None]:
+    """Use ``path`` as the process working directory for one block."""
+    previous = Path.cwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
 
 
 class AgentCliTests(unittest.TestCase):

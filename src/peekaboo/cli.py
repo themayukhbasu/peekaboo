@@ -9,6 +9,7 @@
 import sys
 from collections.abc import Sequence
 from importlib.metadata import version
+from pathlib import Path
 
 from peekaboo.config import Config, ConfigError, load_config
 from peekaboo.peek import bind
@@ -120,6 +121,7 @@ def _run_one_shot(
             tools,
             config=config,
             transport=transport,
+            workspace=Path.cwd(),
         )
     except (ValueError, OSError) as error:
         sys.stderr.write(f"{error}\n")
